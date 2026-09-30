@@ -1,0 +1,24 @@
+# OpenArm simulator overlay. Install INSTEAD of requirements.txt (it includes it).
+#
+#   bash scripts/setup.sh base --openarm
+#
+# These three packages are the whole OpenArm simulation stack: MuJoCo for physics and
+# offscreen rendering, and the official OpenArm control/asset packages for the bimanual
+# IK and the MJCF model. Show-Harness imports the *simulation modules* from an
+# embodied_ai-llm checkout (see core/openarm/sim.py) -- it does not install or import that
+# project's FastAPI/pydantic/placo runtime stack.
+#
+# Why an overlay rather than requirements.txt: unlike the base harness (numpy<2) the
+# checkpoint-serving venv pins its own torch/CUDA stack, and a plain zero-shot run needs
+# none of this. numpy stays <2 here via the base file; measured, the upstream simulator
+# runs unchanged on it (the values it computes are identical; only the pin differs).
+
+-r requirements.txt
+
+mujoco>=3.13
+openarm-control>=0.4.0
+openarm-mujoco>=2.2.0
+
+# Headless rendering. EGL is selected automatically (SHOWHARNESS_OPENARM_GL / MUJOCO_GL
+# override it); PyOpenGL backs MuJoCo's EGL context.
+pyopengl>=3.1.10

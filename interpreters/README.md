@@ -15,6 +15,10 @@ the vocabulary, prompts, and policies stay unchanged.
 | `robolab_atomic_controller.py` | Isaac Lab | 7-D relative differential-IK with per-step orientation hold |
 | `so101_atomic_controller.py` | SO-101 (Isaac Lab Workshop) | joint targets from in-house IK; RT_PITCH/RT_YAW on 5 DoF, RT_ROLL refused (docs/simulators.md) |
 
+OpenArm's simulator needs no interpreter of its own: its MuJoCo backend implements
+the real-arm robot duck type, so `real_atomic_controller.py` drives it unchanged
+(see `core/openarm/`).
+
 **Real arms** integrate absolute Cartesian setpoints against a duck-typed
 robot object:
 

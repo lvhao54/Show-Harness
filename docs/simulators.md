@@ -1,7 +1,8 @@
 # Simulators
 
-Show-Harness integrates three simulators, plus a second embodiment, the LeRobot SO-101 on an
-Isaac Lab scene ([last section](#so-101-isaac-lab-workshop)). They serve two roles:
+Show-Harness integrates three benchmark simulators, plus two arm-specific simulation rigs:
+the LeRobot SO-101 on an Isaac Lab scene and the bimanual OpenArm in MuJoCo
+([SO-101](#so-101-isaac-lab-workshop), [OpenArm](#openarm-mujoco)). They serve two roles:
 
 1. **Zero-shot evaluation** — run the deployment pipelines (the subgoal planner
    stack or the fine-tuned action model, see `docs/finetuned.md`) in sim
@@ -13,6 +14,10 @@ Isaac Lab scene ([last section](#so-101-isaac-lab-workshop)). They serve two rol
 Each integration keeps the deployment contracts: the same nine-token action
 vocabulary, the same image transforms (`core/record/images.py`), and measured
 per-config step calibration so one token means ~2 cm of physical travel.
+
+Installing a simulator's dependencies: `bash scripts/setup.sh base --openarm`
+adds the OpenArm stack to `.venv`. ManiSkill and RoboLab each want their own
+interpreter (see below), because their pins conflict with the base environment.
 
 ## LIBERO
 
@@ -246,3 +251,65 @@ Calibration facts (load-bearing; measured tables in the yaml comments):
   the fingers open if a just-held vial is within 45° of vertical and inside the rack's
   footprint, and it stays set. It does not check the hole, the vial staying upright, or which
   vial it was, so review rollouts by eye before trusting a success rate.
+
+## OpenArm (MuJoCo)
+
+The bimanual OpenArm in MuJoCo, driven through the official `openarm_control`
+bimanual IK. Unlike the three benchmark simulators above, the real-arm stack runs here **unchanged**:
+the session answers the same `get_observation()` contract the Franka session
+does, and `core/openarm/openarm_interface.py` implements the four-method robot
+duck type (`get_ee_pose` / `get_gripper_position` / `control_gripper` /
+`update_desired_ee_pose`) that `RealAtomicController` already speaks. Setpoint
+integration, the Z floor, empty-grasp detection and the `auto_release` plugin
+are therefore the same code as on hardware.
+
+- `scripts/run_openarm_mvtoken.py` — entry point; config `configs/robot_openarm.yaml`.
+  `--scene insert_flower` swaps the default three-cube tabletop for the VLABench
+  vase + three roses; `--arm left|right` picks the driven arm (the other holds
+  its start pose).
+- `--dump-views` and `--probe-axes` are the two calibration checks. Run both
+  before reading any rollout.
+
+The model, IK and cameras are **not vendored**. They come from an
+`embodied_ai-llm` checkout, located via the config's `openarm_root`,
+`OPENARM_ROOT`, or the sibling-checkout search in `core/openarm/sim.py`.
+Only that project's simulation modules are imported; its FastAPI/pydantic/placo
+runtime is never loaded, which is why the base environment's `numpy<2` works
+here (measured; `openarm_control` and `mujoco` do not require numpy 2).
+
+Three parts of the embodiment are easy to get wrong, and each is asserted by a
+test in `tests/test_openarm_sim.py`:
+
+- **The control point is the wrist, not the fingertips.** The
+  `*_ee_control_point` site sits 0.1638 m behind the finger pads along the
+  approach axis. A token sequence that looks right in the logs grasps air if
+  that offset is ignored — the jaw midpoint, not the commanded pose, has to
+  land on the object.
+- **The wrist transform is per-arm.** The eye-in-hand cameras are mirrored
+  (right: `rotation 270 / flip both`; left: `90 / both`). Measured at the home
+  pose by projecting world +X / +Y, and the fingertips, into the wrist frame;
+  the contract is "fingertips at the top, image-left agrees with the agentview".
+- **The axis signs follow the camera, not the robot.** The head camera's
+  image-left is world **+Y**, so `MV_LEFT` is `+Y` — the opposite sign to the
+  real Franka primitives file. `--probe-axes` measures this and
+  `configs/robot_openarm.yaml` documents it; inverting it produces the classic
+  left/right oscillation.
+
+Measured facts (load-bearing; from the model, not assumed):
+
+- The sim tracks its setpoint closely — 20.1 mm achieved per 20 mm commanded on
+  all three axes — so unlike RoboLab's relative IK, `step_m` IS the travelled
+  distance and needs no lag compensation.
+- The gripper free gap runs 0.0 m (closed) to 0.1425 m (open). `0` rad is
+  CLOSED for both arms; the sign is mirrored.
+- The head camera is 1280x720 (16:9) while the training rigs are 4:3, so the
+  agentview is centre-cropped to 4:3 before letterboxing to 256.
+- The upstream vase has **no collision hull below the rim** (a downward raycast
+  grid through the mouth reaches the table). `success_check: flowers_in_vase`
+  is therefore a geometric relation — tip at the mouth, matching VLABench's own
+  relation-based scoring — and is not a test of physical containment.
+
+Cross-domain caveat, stronger here than for the other simulators: the
+released `_sim` policy was trained on Franka/Piper single-arm rollouts, so a
+bimanual OpenArm with a different gripper, camera and workspace is well outside
+its training distribution. Numbers from this harness are exploratory.

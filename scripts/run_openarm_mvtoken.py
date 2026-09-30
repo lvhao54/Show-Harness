@@ -1,0 +1,367 @@
+#!/usr/bin/env python3
+"""Show-Harness OpenArm simulation: MVTOKEN atomic-token policy (no planner/stage).
+
+Simulator sibling of ``scripts/run_maniskill_mvtoken.py``: the same flat MVTOKEN control
+loop, driving an OpenArm bimanual rig in MuJoCo through the official ``openarm_control``
+inverse kinematics. It builds a :class:`~core.openarm.openarm_session.OpenArmSession` and
+drives it with the **unmodified** :class:`~core.runners.mvtoken.MvTokenRunner` -- the
+session answers the same ``get_observation()`` contract the real sessions do, and
+:class:`~core.openarm.openarm_interface.OpenArmSimRobot` implements the four-method robot
+duck type the real-arm controller already speaks. The whole real stack therefore runs
+here unchanged: setpoint integration, the Z safety floor, empty-grasp detection, and the
+``auto_release`` plugin.
+
+The OpenArm model, IK and cameras are NOT vendored: they are imported from an
+``embodied_ai-llm`` checkout (see :mod:`core.openarm.sim` for the search order, or set
+``openarm_root`` in the config / ``OPENARM_ROOT`` in the environment).
+
+CROSS-DOMAIN experiment: the released ``_sim`` LoRA was trained on RoboLab + ManiSkill
+Franka/Piper rollouts, so behaviour on a bimanual OpenArm with a different gripper and
+camera geometry is exploratory. Verify the two image contracts and the step size before
+reading anything into a success rate:
+
+    python scripts/run_openarm_mvtoken.py --dump-views
+    python scripts/run_openarm_mvtoken.py --probe-axes
+
+Start the vLLM server first (Terminal 1) -- serve the adapter the config's vlm_backend
+names, on :8000 (scripts/serve_vlm.sh):
+    MODEL=<base> FAMILY=qwen3_5 \\\\
+      LORA=qwen3_5_2b_showharness_sim=<path> bash scripts/serve_vlm.sh
+
+Then (Terminal 2):
+    python scripts/run_openarm_mvtoken.py --version v3
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+# The entry lives one level below the repo root; make the root importable
+# so core/, plugins/ and friends resolve when run as a script.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from core.config import load_secrets_env, load_yaml
+from core.openarm.openarm_session import OpenArmSession, OpenArmSessionConfig
+from core.record.episode_logger import EpisodeLogger
+from core.runners.mvtoken import MvTokenRunner
+from core.vlm.mvtoken_roles import MvTokenController
+from interpreters.real_atomic_controller import RealAtomicController
+from plugins.auto_release import AutoReleasePlugin
+from plugins.config import PluginsConfig
+
+# Shared sim config/client wiring (no startup calibration -- the atomic controller maps
+# MV_* -> base-frame XYZ directly).
+from core.sim.launch import build_config, make_vlm_client
+
+
+def _prompt_path(prompts_dir: Path, version: str) -> Path:
+    """``prompts/<version>/mvtoken_generator_lite.txt`` with the v4 per-embodiment fallback.
+
+    v4 ships no shared lite prompt, so it falls back to the Franka overhead one -- the
+    OpenArm agentview is also a fixed third-person view, matching that framing.
+    """
+    base = prompts_dir / version
+    names = ("mvtoken_generator_lite.txt", "franka_mvtoken_lite.txt")
+    for name in names:
+        candidate = base / name
+        if candidate.is_file():
+            return candidate
+    raise SystemExit(f"No lite prompt under {base} (looked for {' / '.join(names)}).")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Show-Harness OpenArm sim: MVTOKEN atomic-token policy (no planner/stage)"
+    )
+    parser.add_argument(
+        "--robot-config", default=str(ROOT / "configs" / "robot_openarm.yaml")
+    )
+    parser.add_argument("--prompts-dir", default=str(ROOT / "prompts"))
+    parser.add_argument(
+        "--version",
+        default="v3",
+        help="Prompt version subfolder under prompts/ (e.g. v3, v4), matching the served "
+        "LoRA's training data.",
+    )
+    parser.add_argument(
+        "--scene", default=None,
+        help="OpenArm scene: omit for the default three-cube tabletop, or `insert_flower`.",
+    )
+    parser.add_argument("--arm", default=None, choices=(None, "left", "right"))
+    parser.add_argument(
+        "--openarm-root", default=os.environ.get("OPENARM_ROOT"),
+        help="Path to the embodied_ai-llm checkout holding the OpenArm model.",
+    )
+    parser.add_argument(
+        "--success-check", default=None,
+        help="none | cubes_on_table | flowers_in_vase (default: the config's value).",
+    )
+    parser.add_argument(
+        "--z-floor-m", type=float, default=None,
+        help="Override the config's control-point Z floor (arm_origin frame, metres).",
+    )
+    parser.add_argument("--no-z-floor", action="store_true", help="Disable the Z floor.")
+    parser.add_argument(
+        "--vlm-backend", default=os.environ.get("VLM_BACKEND")
+    )
+    parser.add_argument(
+        "--vlm-url", default=os.environ.get("VLM_URL") or os.environ.get("VLLM_BASE_URL")
+    )
+    parser.add_argument("--model", default=os.environ.get("VLLM_MODEL"))
+    parser.add_argument("--max-steps", type=int, default=None)
+    parser.add_argument("--loop-period-s", type=float, default=None)
+    parser.add_argument("--log-dir", default=None)
+    parser.add_argument(
+        "--probe-axes", action="store_true",
+        help="Before the rollout, step each MV_* token in isolation and record the observed "
+        "control-point delta into calibration.json (verifies the axis/sign mapping).",
+    )
+    parser.add_argument(
+        "--dump-views", action="store_true",
+        help="Write the two prepared views to the run dir and exit, so the camera framing "
+        "and transforms can be checked by eye before any rollout.",
+    )
+    parser.add_argument(
+        "--prompt-log-every", type=int, default=20,
+        help="Save the exact VLM prompt + returned token every N steps (0 disables).",
+    )
+    parser.add_argument(
+        "--debug", action="store_true", default=os.environ.get("DEBUG") == "1"
+    )
+    # build_config reads these; the OpenArm path does not use them.
+    parser.set_defaults(task_suite_name=None, task_id=None, episode_index=None)
+    return parser.parse_args()
+
+
+def _session_config(cfg: dict, args: argparse.Namespace) -> OpenArmSessionConfig:
+    return OpenArmSessionConfig(
+        openarm_root=args.openarm_root or cfg.get("openarm_root"),
+        scene=args.scene if args.scene is not None else cfg.get("scene"),
+        arm_side=str(args.arm or cfg.get("arm_side", "right")),
+        control_hz=float(cfg.get("control_hz", 60.0)),
+        sim_ticks_per_command=int(cfg.get("sim_ticks_per_command", 6)),
+        gripper_ticks=int(cfg.get("gripper_ticks", 60)),
+        settle_ticks=int(cfg.get("settle_ticks", 60)),
+        observation_resolution=(
+            int(cfg["observation_resolution"]) if cfg.get("observation_resolution") else None
+        ),
+        hd_resolution=int(cfg["hd_resolution"]) if cfg.get("hd_resolution") else None,
+        agentview_rotation_degrees=int(cfg.get("agentview_rotation_degrees", 0)),
+        wrist_rotation_degrees=int(cfg.get("wrist_rotation_degrees", 0)),
+        agentview_flip=str(cfg.get("agentview_flip", "none")),
+        wrist_flip=str(cfg.get("wrist_flip", "none")),
+        agentview_crop_aspect=cfg.get("agentview_crop_aspect"),
+        wrist_crop_aspect=cfg.get("wrist_crop_aspect"),
+        success_check=str(args.success_check or cfg.get("success_check", "none")),
+    )
+
+
+def _make_controller(cfg: dict, args: argparse.Namespace, robot) -> RealAtomicController:
+    """The real-arm controller, unchanged -- only the robot duck type is simulated.
+
+    Token semantics come from the robot config's own ``move_vectors`` when present (the same
+    convention ``configs/robot_maniskill.yaml`` and ``robot_robolab.yaml`` use), falling back
+    to the primitives file for anything the config omits. The robot config is authoritative
+    because the axis signs follow the CAMERA: the OpenArm head view's image-left is world +Y,
+    which differs from the real Franka rig the primitives file was written for. Verify with
+    ``--probe-axes`` after any change to the scene, camera or mount.
+    """
+    from core.action_units import MOVE_ATOMS
+    from core.config import load_yaml as _load
+
+    prim_path = cfg.get("primitives_config") or str(
+        ROOT / "configs" / "primitives_franka.yaml"
+    )
+    prims = _load(prim_path)
+    atomic_primitives = dict(prims["atomic_primitives"])
+    move_vectors = cfg.get("move_vectors") or {}
+    missing = [name for name in MOVE_ATOMS if name not in move_vectors]
+    if missing and missing != list(MOVE_ATOMS):
+        raise ValueError(
+            f"move_vectors must define all of {list(MOVE_ATOMS)}; missing {missing}"
+        )
+    if not missing:
+        atomic_primitives.update(
+            {name: list(move_vectors[name]) for name in MOVE_ATOMS}
+        )
+    z_floor = None if args.no_z_floor else cfg.get("z_floor_m")
+    if args.z_floor_m is not None:
+        z_floor = args.z_floor_m
+    if not bool(cfg.get("enable_z_floor", True)) and args.z_floor_m is None:
+        z_floor = None
+    return RealAtomicController(
+        robot,
+        atomic_primitives,
+        float(cfg.get("step_m", prims.get("step_m", 0.02))),
+        float(prims.get("yaw_step_rad", 0.15)),
+        max_position_delta_m=float(
+            prims.get("osc_translation_output_max_m", 0.05)
+        ),
+        max_rotation_delta_rad=float(
+            prims.get("osc_rotation_output_max_rad", 0.5)
+        ),
+        settle_steps=int(cfg.get("settle_steps", 6)),
+        settle_dt_s=float(cfg.get("settle_dt_s", 0.0)),
+        gripper_close_threshold_m=float(cfg.get("gripper_close_threshold_m", 0.02)),
+        grasp_min_width_m=float(cfg["empty_width_m"]) if cfg.get("empty_width_m") else None,
+        grasp_open_width_m=float(cfg.get("open_width_m", 0.06)),
+        gripper_settle_s=float(cfg.get("gripper_settle_s", 0.0)),
+        gripper_min_settle_s=float(cfg.get("gripper_min_settle_s", 0.0)),
+        z_floor_m=z_floor,
+        verbose=True,
+    )
+
+
+def _probe_axes(session: OpenArmSession, controller: RealAtomicController) -> dict:
+    """Step each MV_* token in isolation and measure the control-point displacement."""
+    from core.action_units import MOVE_ATOMS
+
+    controller.sync_from_robot()
+    out: dict[str, list[float]] = {}
+    for token in MOVE_ATOMS:
+        before = controller.robot.get_ee_pose()[:3].copy()
+        controller.step(token)
+        after = controller.robot.get_ee_pose()[:3].copy()
+        out[token] = [round(float(v), 5) for v in (after - before)]
+    return out
+
+
+def _dump_views(session: OpenArmSession, out_dir: Path) -> int:
+    """Write the two prepared views so the framing/transform can be inspected."""
+    from PIL import Image
+
+    obs = session.get_observation()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for key in ("agentview", "wrist"):
+        path = out_dir / f"{key}.png"
+        Image.fromarray(obs[key]).save(path)
+        print(f"  {key:10s} {obs[key].shape} -> {path}")
+    print(f"EE pose: {[round(float(v), 4) for v in obs['ee_pose']]}")
+    print(f"gripper width: {obs['gripper_width'] * 1000:.1f} mm")
+    return 0
+
+
+def main() -> int:
+    args = parse_args()
+    load_secrets_env()
+    robot_cfg = load_yaml(args.robot_config)
+    cfg = build_config(args, robot_cfg)
+
+    prompt_path = _prompt_path(Path(args.prompts_dir), args.version)
+    prompt_template = prompt_path.read_text(encoding="utf-8").strip()
+    print(f"Prompt: {prompt_path} (version {args.version})")
+
+    session = OpenArmSession(_session_config(cfg, args))
+    try:
+        session.connect()
+    except Exception as exc:  # noqa: BLE001 - startup guidance beats a traceback
+        print(f"\n[openarm] could not start the simulation: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        logger = EpisodeLogger(Path(ROOT) / str(cfg["log_dir"]), 0, variant="OA")
+        if args.dump_views:
+            return _dump_views(session, logger.run_dir)
+
+        client = make_vlm_client(args, cfg)
+        vlm_cfg = cfg["vlm"]
+        print(
+            f"VLM backend: {vlm_cfg.get('backend', '?')} "
+            f"(model={vlm_cfg['model']}, base_url={vlm_cfg['base_url']})"
+        )
+        if str(vlm_cfg.get("provider", "vllm")).lower() == "vllm":
+            print(f"Waiting for VLM endpoint {vlm_cfg['base_url']}/models ...")
+            client.health_check(
+                wait_s=float(vlm_cfg.get("startup_wait_s", 0)),
+                poll_s=float(vlm_cfg.get("startup_poll_s", 5)),
+            )
+            print("VLM endpoint is ready.")
+
+        controller = _make_controller(cfg, args, session.robot)
+        controller.sync_from_robot()
+
+        if args.probe_axes:
+            axes = _probe_axes(session, controller)
+            logger.write_calibration({"move_axis_controlpoint_delta": axes})
+            print("Axis probe (control-point delta per MV_* token, arm_origin metres):")
+            for token, delta in axes.items():
+                print(f"  {token:8s} -> {delta}")
+
+        # Auto-release safety rule (plugins.auto_release): reopen a closed gripper whose
+        # measured width shows it is holding nothing.
+        plugins_cfg = PluginsConfig.from_config(cfg)
+        auto_release = AutoReleasePlugin(
+            enabled=plugins_cfg.enabled("auto_release", default=True),
+            empty_width_m=float(cfg.get("empty_width_m", 0.006)),
+        )
+        if auto_release.enabled:
+            print(
+                "Auto-release: ON (reopen a closed gripper narrower than "
+                f"{auto_release.empty_width_m:.4f} m)."
+            )
+
+        task = str(cfg.get("task") or "").strip() or _default_task(cfg)
+        print(f"Task: {task}")
+        logger.write_metadata(
+            {
+                "sim": "openarm",
+                "scene": session.config.scene,
+                "arm_side": session.config.arm_side,
+                "success_check": session.config.success_check,
+                "task": task,
+                "robot_config": cfg,
+                "prompt_file": str(prompt_path.resolve()),
+                "prompt_version": args.version,
+                "control_loop": "openarm_mvtoken",
+                "z_floor_m": controller.z_floor_m,
+                "debug": args.debug,
+            }
+        )
+
+        runner = MvTokenRunner(
+            session=session,
+            controller=controller,
+            agent=MvTokenController(client=client, prompt_template=prompt_template),
+            logger=logger,
+            task=task,
+            gripper_color=str(cfg.get("gripper_color", "black")),
+            max_steps=int(cfg["max_steps"]),
+            loop_period_s=float(cfg.get("loop_period_s", 0.0)),
+            use_wrist_image=bool(cfg.get("use_wrist_image", True)),
+            video_fps=float(cfg.get("v0", {}).get("video_fps", 2.0)),
+            debug=bool(args.debug),
+            auto_release=auto_release,
+            prompt_log_every=int(args.prompt_log_every),
+        )
+        result = runner.run()
+
+        env_success = session.success()
+        print(f"Episode success: {env_success}")
+        print(f"Steps: {result.steps}")
+        print(f"End reason: {result.end_reason}")
+        print(f"Run dir: {result.run_dir}")
+        print(f"Video: {result.video_path}")
+
+        # Environment ground truth is logged for analysis, never shown to the policy.
+        try:
+            logger.write_planner_diagnostics({"scene_truth": session.scene_truth()})
+        except Exception as exc:  # noqa: BLE001 - diagnostics must not fail a rollout
+            print(f"[openarm] could not write scene truth: {exc}")
+        return 0 if (env_success or result.end_reason == "done") else 2
+    finally:
+        session.close()
+
+
+def _default_task(cfg: dict) -> str:
+    """Task text when the config carries none (the sim configs are task-free)."""
+    if cfg.get("scene") == "insert_flower":
+        return "Insert the roses into the vase"
+    return "Pick up the red cube and place it on the table"
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -79,7 +79,7 @@ https://github.com/user-attachments/assets/bd2d31db-f5c5-4554-85bb-2aa206876ac7
 Through the same interface, a closed-source frontier VLM controls a robot **zero-shot**, and a small open model becomes a capable policy with **less than a few H200 GPU-hours** of fine-tuning.
 
 - 🤖 **Two modes, one interface** — a frontier VLM zero-shot, or a fine-tuned small VLM emitting one action token per step.
-- 🦾 **Embodiment-agnostic** — Franka, AgileX Piper (single and dual arm), ManiSkill, Isaac Lab, and LIBERO share one vocabulary and one prompt set.
+- 🦾 **Embodiment-agnostic** — Franka, AgileX Piper (single and dual arm), OpenArm, ManiSkill, Isaac Lab, and LIBERO share one vocabulary and one prompt set.
 - 🎮 **GUMI** — demonstrate a task by playing the robot in a browser; no teleoperation hardware, no post-processing.
 - 🧩 **Ablation-grade plugins** — one directory, one boolean, and byte-identical to no plugin when disabled.
 

@@ -6,6 +6,7 @@ set -euo pipefail
 #   bash scripts/setup.sh                # show what exists and what is missing
 #   bash scripts/setup.sh base           # .venv        the harness
 #   bash scripts/setup.sh base --real    #              + Franka/Piper hardware layer
+#   bash scripts/setup.sh base --openarm #              + OpenArm MuJoCo simulator
 #   bash scripts/setup.sh serve          # .venv-vllm   serve a VLM locally
 #   bash scripts/setup.sh libero <dir>   # <dir>/.venv  a LIBERO-family simulator repo
 #
@@ -56,7 +57,12 @@ require_uv() {
 
 setup_base() {
   local req="${REPO_ROOT}/requirements/requirements.txt"
-  [ "${1:-}" = --real ] && req="${REPO_ROOT}/requirements/requirements-real.txt"
+  case "${1:-}" in
+    --real)    req="${REPO_ROOT}/requirements/requirements-real.txt" ;;
+    --openarm) req="${REPO_ROOT}/requirements/requirements-openarm.txt" ;;
+    "")        ;;
+    *) echo "unknown base option: $1 (--real / --openarm)" >&2; exit 1 ;;
+  esac
 
   # uv when it is around (much faster), plain venv+pip otherwise. Nothing here needs a
   # custom index or install ordering, so either works.

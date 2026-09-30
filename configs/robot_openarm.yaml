@@ -1,0 +1,158 @@
+# Lab experiment state rides in an optional overlay (absent publicly).
+overlays:
+  - {path: experiments/current_sims.yaml, optional: true}
+
+# MVTOKEN atomic-token policy on the OpenArm bimanual rig (MuJoCo via embodied_ai-llm).
+# Sibling of configs/robot_maniskill.yaml and configs/robot_robolab.yaml.
+#
+# Cross-domain zero-shot: the released LoRA was trained on REAL Franka/Piper rollouts, so
+# behaviour here is exploratory. Two knobs decide whether a rollout is readable at all --
+# verify BOTH before trusting any number (see docs/simulators.md):
+#   * `--dump-views` -- the camera framing the policy sees;
+#   * `--probe-axes` -- the measured per-token TCP displacement.
+
+# Where the OpenArm model, IK and cameras come from. Left unset, core.openarm.sim probes
+# ../embodied_ai-llm, ~/embodied_ai-llm and ~/ws/luke/embodied_ai-llm in order; set this
+# (or export OPENARM_ROOT) when the checkout lives elsewhere.
+# openarm_root: /home/luke/ws/luke/embodied_ai-llm
+
+# Upstream scene. null -> the default three-cube tabletop; insert_flower adds the VLABench
+# vase + three roses. The scene decides which objects exist, so it also decides which
+# success_check is meaningful.
+scene: null
+# Success predicate read from simulator ground truth (never shown to the policy):
+#   none             -- no environment check; the policy's own DONE is the only terminal
+#                       signal. This is what the fine-tuned MVTOKEN loop wants.
+#   cubes_on_table   -- default scene: all three cubes still resting on the tabletop.
+#   flowers_in_vase  -- insert_flower scene: every rose tip inside the vase mouth.
+success_check: none
+
+# Which arm the single-arm loop drives. The other arm holds the pose it had at startup.
+arm_side: right
+
+# ---- Robot / world --------------------------------------------------------
+control_hz: 60
+# Physics ticks per setpoint command. The upstream IK is a damped local solver, so the
+# target is re-solved every tick; 6 ticks == 0.1 s, which pairs with the real controller's
+# settle_dt_s below (one atomic token = settle_steps x 6 ticks of simulated time).
+sim_ticks_per_command: 6
+settle_steps: 6
+settle_dt_s: 0.001
+# Ticks to let the jaw travel before its width is read (the jaw is a position servo).
+gripper_ticks: 60
+settle_ticks: 60
+
+# ---- Cameras --------------------------------------------------------------
+# The model ships camera_head (fixed third-person, 1280x720) plus one eye-in-hand camera per
+# arm (960x600). The driven arm's wrist camera supplies the wrist view; the head camera
+# supplies the agentview, because a wrist view moves with the arm and cannot be the global
+# reference the prompt's left/right rules are written against.
+observation_resolution: 256
+# Same rotate -> centre-crop -> letterbox contract as every other embodiment
+# (core.record.images.prepare_view). 1280x720 is 16:9 while the training rigs are 4:3, so
+# crop the head view to 4:3 BEFORE letterboxing, or the scene occupies a thin strip.
+agentview_rotation_degrees: 0
+agentview_flip: none
+agentview_crop_aspect: 1.3333
+agentview_square_size: 256
+# Wrist transform. The OpenArm wrist camera is mounted rotated relative to the MVTOKEN
+# training rig, AND the two arms are mirrored, so these are per-arm values. Measured on the
+# home pose by projecting the world +X / +Y axes and the fingertips into the wrist frame
+# (see the measurement in docs/simulators.md):
+#   right arm -> rotation 270, flip both   (+X reads UP, +Y reads LEFT, fingertips at TOP)
+#   left  arm -> rotation  90, flip both
+# Values below are for the default `arm_side: right`; swap them together with arm_side.
+wrist_rotation_degrees: 270
+wrist_flip: both
+wrist_crop_aspect: 1.3333
+wrist_square_size: 256
+use_wrist_image: true
+
+# ---- Atomic step ----------------------------------------------------------
+# Base-frame unit vector per move token, in the OpenArm arm_origin frame (which is axis
+# aligned with world): +X forward (away from the robot), +Y to the robot's LEFT, +Z up.
+#
+# These are deliberately NOT the naive axis signs, because the prompt is written in IMAGE
+# terms ("TARGET near the image left -> MV_LEFT"). The head camera looks along
+# (+0.5, 0, -0.866) with its image-right axis at world -Y, so a +Y displacement appears on
+# the image LEFT and an image-left target is reached by INCREASING Y. Measured by
+# projecting world +X / +Y into the head frame (see docs/simulators.md), and re-checkable
+# with `--probe-axes`. Getting this backwards produces the classic MV_LEFT/MV_RIGHT
+# oscillation: the policy correctly sees the target to one side and steps away from it.
+move_vectors:
+  MV_FWD:   [1.0, 0.0, 0.0]
+  MV_BACK:  [-1.0, 0.0, 0.0]
+  MV_LEFT:  [0.0, 1.0, 0.0]    # image-left == world +Y
+  MV_RIGHT: [0.0, -1.0, 0.0]   # image-right == world -Y
+  MV_UP:    [0.0, 0.0, 1.0]
+  MV_DOWN:  [0.0, 0.0, -1.0]
+
+# Commanded step per token. The OpenArm sim tracks its setpoint closely (measured 20.1 mm
+# achieved for a 20 mm command on all three axes), so unlike RoboLab's relative-IK this
+# needs no lag compensation: step_m IS the physical distance travelled.
+step_m: 0.02
+
+# Gripper: 0 rad is fully CLOSED and the joint-range extreme is fully OPEN; the sign is
+# mirrored per arm (right [-0.7854, 0], left [0, 0.7854]). Measured free gap runs 0.0 m
+# closed -> 0.1425 m open.
+gripper_close_threshold_m: 0.02
+empty_width_m: 0.006
+open_width_m: 0.06
+gripper_settle_s: 0.0
+gripper_min_settle_s: 0.0
+
+# ---- Safety ---------------------------------------------------------------
+# Hard lower bound on the CONTROL-POINT height, in arm_origin Z (negative is below the
+# robot's own base). Upstream's table surface sits at -0.298 and the home control point at
+# -0.221.
+#
+# The floor is checked against the control point, but the FINGER PADS hang 0.1638 m further
+# along the approach axis (see core/openarm/openarm_interface.py). At the home orientation
+# that axis is horizontal, so the pads ride at the control point's own height -- but once
+# the jaw pitches down, the LOWEST gripper geometry sits ~0.065 m below the control point.
+# -0.225 keeps that geometry above the -0.298 tabletop with ~8 mm of margin, while still
+# letting the pads reach an object resting on the surface. Calibrate for your own table and
+# re-check with `--probe-axes` before trusting it.
+enable_z_floor: true
+z_floor_m: -0.225
+
+# ---- Rollout --------------------------------------------------------------
+max_steps: 80
+num_steps_wait: 8
+loop_period_s: 0.0
+log_dir: rollouts/openarm
+
+v0:
+  video_fps: 5.0
+
+# Which served VLM the runner talks to. Released checkpoints are named
+# <model>_showharness_<split>; see docs/finetuned.md for each base model and FAMILY.
+vlm_backend: qwen3_5_2b
+
+vlm:
+  base_url: http://localhost:8000/v1
+  timeout_s: 120
+  startup_wait_s: 600
+  startup_poll_s: 5
+  temperature: 0.0
+  api_key: EMPTY
+
+vlm_backends:
+  # ---- Fine-tuned action policies -----------------------------------------
+  finetuned_local:
+    # Your own adapter. Rename `model` to whatever you registered.
+    provider: vllm
+    model: your_adapter_name
+    max_tokens: 256
+    reasoning_cot: false
+    chat_template_kwargs:
+      enable_thinking: false
+  qwen3_5_2b:
+    # Qwen3.5-2B LoRA fine-tuned on the sim split - RoboLab and ManiSkill together,
+    # one policy for both simulators (FAMILY=qwen3_5).
+    provider: vllm
+    model: qwen3_5_2b_showharness_sim
+    max_tokens: 256
+    reasoning_cot: false
+    chat_template_kwargs:
+      enable_thinking: false
