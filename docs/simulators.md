@@ -272,12 +272,13 @@ Two entry points share one world:
 
 Both drive the same session and the same controller factory
 (`core/openarm/controller.py`); only the decision loop differs. A test asserts
-the two configs agree on the world, the cameras and the safety values, so a
-change in one cannot silently move the task out from under the other.
+the two configs agree on the world and safety values. Camera preprocessing is
+policy-specific: zero-shot uses upright native views; the fine-tuned path retains
+its legacy wrist transform.
 
 `--scene insert_flower` swaps the default three-cube tabletop for the VLABench
-vase + three roses; `--arm left|right` picks the driven arm (the other holds its
-start pose). On the zero-shot entry point `--dump-views` and `--probe-axes` are
+vase + three roses; also select `--success-check flowers_in_vase` for that task.
+`--arm left|right` picks the driven arm (the other holds its start pose). On the zero-shot entry point `--dump-views` and `--probe-axes` are
 not defined, so calibrate once with the mvtoken entry point before reading any
 rollout.
 
@@ -310,10 +311,11 @@ test in `tests/test_openarm_sim.py`:
   approach axis. A token sequence that looks right in the logs grasps air if
   that offset is ignored — the jaw midpoint, not the commanded pose, has to
   land on the object.
-- **The wrist transform is per-arm.** The eye-in-hand cameras are mirrored
-  (right: `rotation 270 / flip both`; left: `90 / both`). Measured at the home
-  pose by projecting world +X / +Y, and the fingertips, into the wrist frame;
-  the contract is "fingertips at the top, image-left agrees with the agentview".
+- **The wrist view is a side view.** Native wrist image height mostly represents
+  vertical height, not table depth. Zero-shot uses `controller_openarm.txt`, native
+  upright views and the configured FWD/BACK exchange at execution. The legacy
+  fine-tuned transforms remain right `270/both`, left `90/both`; they are a
+  deployment convention, not evidence that the adapter was trained on OpenArm.
 - **The axis signs follow the camera, not the robot.** The head camera's
   image-left is world **+Y**, so `MV_LEFT` is `+Y` — the opposite sign to the
   real Franka primitives file. `--probe-axes` measures this and
@@ -327,7 +329,23 @@ Measured facts (load-bearing; from the model, not assumed):
   all three axes — so unlike RoboLab's relative IK, `step_m` IS the travelled
   distance and needs no lag compensation.
 - The gripper free gap runs 0.0 m (closed) to 0.1425 m (open). `0` rad is
-  CLOSED for both arms; the sign is mirrored.
+  CLOSED for both arms; the sign is mirrored. A held 45 mm cube leaves a 45 mm
+  gap, so the OPEN/CLOSED threshold is 60 mm, not the old 20 mm.
+- The horizontal tool's calibrated wrist floor is **-0.250 m** in `arm_origin`.
+  The former -0.225 m floor left only about 1 mm of pad/cube overlap and empty
+  grasps. Proprioception reports travel remaining to the wrist floor, not an
+  invented fingertip-to-table distance.
+- IK includes a robot-only link4/pedestal collision constraint and a stronger
+  orientation task. Without both, transport to the central cube collides with
+  the pedestal or tilts the tool. The limit extension uses the tested
+  `openarm-control==0.4.0` solver seam.
+- Zero-shot re-observes after every action; three coarse open-loop moves could
+  overshoot the small cubes. A stage timeout fails the episode instead of
+  advancing from an unfinished GRASP to LIFT.
+- `success_check: red_on_green` independently verifies the default stack task
+  after final DONE: support contacts, low velocities and no arm contact. The
+  score and object poses are never policy inputs. Change the predicate with
+  the task; `none` keeps VLM-only completion.
 - The head camera is 1280x720 (16:9) while the training rigs are 4:3, so the
   agentview is centre-cropped to 4:3 before letterboxing to 256.
 - The upstream vase has **no collision hull below the rim** (a downward raycast
@@ -335,11 +353,23 @@ Measured facts (load-bearing; from the model, not assumed):
   is therefore a geometric relation — tip at the mouth, matching VLABench's own
   relation-based scoring — and is not a test of physical containment.
 
-Cross-domain caveat, stronger here than for the other simulators: the
-released `_sim` policy was trained on Franka/Piper single-arm rollouts, so a
-bimanual OpenArm with a different gripper, camera and workspace is well outside
-its training distribution. Numbers from the fine-tuned entry point are
-exploratory. The zero-shot entry point is a frontier VLM reading the same
-prompts as on hardware, so it is not limited by that training corpus, but it is
-still an un-tuned embodiment: verify the two calibration checks before trusting
-either mode.
+Validate mechanics without a model before spending on a rollout:
+
+```bash
+.venv/bin/python -m pytest tests/test_openarm_grasp.py tests/test_openarm_success.py -q
+.venv/bin/python scripts/run_real.py --robot-config configs/robot_openarm_zero.yaml \
+  --vlm-backend gateway --no-show
+```
+
+The physics regression uses fixed tokens (not a VLM): it reproduces the old empty
+close, checks the corrected grasp/lift, then transports, releases and retreats
+from a stable red-on-green stack without elbow/pedestal contact. It establishes
+that the control path can solve the task; it is not an autonomous policy score.
+
+The released `_sim` adapter was trained on other simulators, not OpenArm. The
+local validated experiments that emitted only MV_DOWN are failed cross-domain
+policy transfer; changing the floor cannot supply missing visual/motor training.
+Use the zero-shot path to establish an autonomous baseline, or collect OpenArm
+trajectories and train a corresponding adapter before treating fine-tuned results
+as supported performance. The zero-shot prompt is specific to the fixed horizontal
+tool and native camera mounting; revalidate it if either changes.

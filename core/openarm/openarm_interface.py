@@ -26,7 +26,7 @@ rather than assumed:
    correct in the logs will grasp thin air if the offset is ignored.
 
 3. **One command is not one simulation tick.** The upstream IK is a *damped local
-   solver* (``ik_max_iters=5``): a single solve lands only part-way to a distant target,
+   solver* (``ik_max_iters=10``): a single solve lands only part-way to a distant target,
    so the arm tracks properly only when the target is re-solved every control tick -- the
    same way the upstream runtime's control thread drives it. Each
    :meth:`update_desired_ee_pose` here therefore re-solves and advances the physics by
@@ -253,7 +253,10 @@ class OpenArmSimRobot:
     def close(self) -> None:
         """Best-effort teardown of the upstream backend."""
         try:
-            self.backend.close()
+            try:
+                self.backend.close_camera()
+            finally:
+                self.backend.close()
         except Exception as exc:  # noqa: BLE001 - teardown must never mask a result
             if self.verbose:
                 print(f"[{self.LOG_TAG}] backend close error: {exc}")

@@ -96,7 +96,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--arm", default=None, choices=(None, "left", "right"))
     parser.add_argument(
         "--success-check", default=None,
-        help="none | cubes_on_table | flowers_in_vase (default: the config's value).",
+        help="none | cubes_on_table | red_on_green | flowers_in_vase (default: the config's value).",
     )
     parser.add_argument(
         "--z-floor-m", type=float, default=None,
@@ -331,7 +331,10 @@ def main() -> int:
             logger.write_planner_diagnostics({"scene_truth": session.scene_truth()})
         except Exception as exc:  # noqa: BLE001 - diagnostics must not fail a rollout
             print(f"[openarm] could not write scene truth: {exc}")
-        return 0 if (env_success or result.end_reason == "done") else 2
+        # An explicitly requested physics predicate must not be bypassed by DONE.
+        checked = str(session.config.success_check or "none").strip().lower() != "none"
+        completed = env_success if checked else result.end_reason == "done"
+        return 0 if completed else 2
     finally:
         session.close()
 

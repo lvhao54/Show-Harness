@@ -16,7 +16,8 @@
 -r requirements.txt
 
 mujoco>=3.13
-openarm-control>=0.4.0
+# Robot-only collision limits use the tested 0.4.0 solver extension seam.
+openarm-control==0.4.0
 openarm-mujoco>=2.2.0
 
 # Headless rendering. EGL is selected automatically (SHOWHARNESS_OPENARM_GL / MUJOCO_GL

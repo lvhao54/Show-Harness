@@ -108,8 +108,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--success-check",
         default=None,
-        help="OpenArm simulator only: ground-truth predicate for the log "
-        "(none | cubes_on_table | flowers_in_vase).",
+        help="OpenArm simulator only: independent task completion predicate "
+        "(none | cubes_on_table | red_on_green | flowers_in_vase).",
     )
     parser.add_argument(
         "--begin-pose",

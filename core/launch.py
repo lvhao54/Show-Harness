@@ -590,8 +590,8 @@ def make_controller(
             "(sets arms.<side>.z_floor_m in configs/robot_piper.yaml) -- or pass "
             "--z-floor-m <height> explicitly."
         )
-    # OpenArm: the floor is a CONFIG value measured on this model (the control point
-    # reaches -0.225 with the fingertips clearing the -0.298 tabletop), so "capture at
+    # OpenArm: the floor is calibrated for the horizontal home tool (-0.250 in
+    # arm_origin, with the table at -0.298), so "capture at
     # the start height" would lock it at the home pose and forbid all descent. The sim
     # config always names an explicit height; refuse a capture instead of silently
     # starting a rollout the arm cannot complete.
@@ -948,7 +948,11 @@ def make_runner(
     vlm_cfg = cfg.get("vlm", {})
     cot_mode = bool(vlm_cfg.get("reasoning_cot"))
     backend_prompt = prompts_cfg.get(f"controller_{vlm_cfg.get('backend')}_prompt") if cot_mode else None
-    controller_prompt = backend_prompt or prompts_cfg["controller_prompt"]
+    prompt_name = cfg.get("controller_prompt")
+    controller_prompt = (
+        prompts_cfg[f"controller_{prompt_name}_prompt"]
+        if prompt_name else backend_prompt or prompts_cfg["controller_prompt"]
+    )
     controller_prompt = CoordsPlugin(plugins.enabled("coords", default=False)).apply(controller_prompt)
     # Optional wrist motion frame (motion_frame: wrist): MV_* follow the gripper's
     # heading, so the front-view direction lines are rewritten to heading-relative
@@ -1019,6 +1023,11 @@ def make_runner(
             f"decision commits {action_chunk_plugin.step_num} x {vstep.coarse_step_m:.3f} m = up "
             f"to {action_chunk_plugin.step_num * vstep.coarse_step_m:.3f} m open-loop before re-checking."
         )
+    proprio_class = ProprioceptionPlugin
+    if cfg.get("hardware") == "openarm":
+        from core.openarm.prompting import OpenArmProprioceptionPlugin
+
+        proprio_class = OpenArmProprioceptionPlugin
     controls = StageControlSuite(
         controller=Controller(
             ControllerAgent(
@@ -1027,7 +1036,7 @@ def make_runner(
                 common_context=common_context,
                 cot_mode=cot_mode,
                 gripper_color=gripper_color,
-                proprio_plugin=ProprioceptionPlugin(
+                proprio_plugin=proprio_class(
                     plugins.enabled("proprioception"),
                     high_above_table_m=high_above_table_m(cfg),
                     # Surface the real per-step distances: the controller's fine step, and the
@@ -1074,6 +1083,14 @@ def make_runner(
         action_ablation_plugin=action_ablation_plugin,
         recent_moves_max=mem_text_plugin.max_recent,
         viewer=viewer,
+        # A disabled predicate returns False; only explicitly configured simulator
+        # checks may veto the VLM's final DONE.
+        task_success_check=(
+            session.success
+            if cfg.get("hardware") == "openarm"
+            and str(cfg.get("success_check", "none")).lower() != "none"
+            else None
+        ),
     )
 
 def dual_session_config(

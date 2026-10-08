@@ -92,26 +92,21 @@ step_m: 0.02
 # Gripper: 0 rad is fully CLOSED and the joint-range extreme is fully OPEN; the sign is
 # mirrored per arm (right [-0.7854, 0], left [0, 0.7854]). Measured free gap runs 0.0 m
 # closed -> 0.1425 m open.
-gripper_close_threshold_m: 0.02
+gripper_close_threshold_m: 0.06
 empty_width_m: 0.006
 open_width_m: 0.06
 gripper_settle_s: 0.0
 gripper_min_settle_s: 0.0
 
 # ---- Safety ---------------------------------------------------------------
-# Hard lower bound on the CONTROL-POINT height, in arm_origin Z (negative is below the
-# robot's own base). Upstream's table surface sits at -0.298 and the home control point at
-# -0.221.
-#
-# The floor is checked against the control point, but the FINGER PADS hang 0.1638 m further
-# along the approach axis (see core/openarm/openarm_interface.py). At the home orientation
-# that axis is horizontal, so the pads ride at the control point's own height -- but once
-# the jaw pitches down, the LOWEST gripper geometry sits ~0.065 m below the control point.
-# -0.225 keeps that geometry above the -0.298 tabletop with ~8 mm of margin, while still
-# letting the pads reach an object resting on the surface. Calibrate for your own table and
-# re-check with `--probe-axes` before trusting it.
+# Lower bound on wrist/control-point Z in arm_origin (table is at -0.298 m).
+# The controller holds the home orientation: the fingers approach horizontally.
+# At the old -0.225 floor the pad collision mesh overlaps only ~1 mm of a cube's
+# top edge, so closing is empty. At -0.250 the pads grip a 45 mm cube and the full
+# moving gripper clears the table. Verified by the contact/pick/lift regression.
+# This floor is calibrated for the fixed horizontal orientation, not pitched tools.
 enable_z_floor: true
-z_floor_m: -0.225
+z_floor_m: -0.250
 
 # ---- Rollout --------------------------------------------------------------
 max_steps: 80

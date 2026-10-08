@@ -16,9 +16,10 @@ overlays:
 
 # The plugin harness reads this key to select the simulator session + controller.
 hardware: openarm
+controller_prompt: openarm
 
 # ----- Task -----------------------------------------------------------------
-task: "Pick up the red cube and place it on the blue cube"
+task: "Pick up the red cube and place it on the green cube"
 # task: "Pick up the red cube and place it on the table"
 # With `scene: insert_flower` (needs the one-time VLABench asset fetch):
 # task: "Insert the roses into the vase"
@@ -38,7 +39,8 @@ plugins:
   proprioception: true
   recovery: true
   variable_step: true
-  action_chunk: true
+  # Side-on wrist vision needs a fresh observation after every move.
+  action_chunk: false
   mem_text: true
   smooth: true
   dagger: false
@@ -66,12 +68,13 @@ hd_res: 640                  # planner / affordance renders (the head camera is 
 #   bash scripts/model/download_vlabench_assets.sh
 scene: null
 
-# Ground-truth predicate for the log ONLY -- never shown to the policy. The zero-shot
-# controller's own DONE is the success signal (there is no simulator check in the loop).
-#   none            -- no environment check (use this with the default cube task)
+# Independent physics check after the final DONE; never shown to the policy.
+# Change this together with task/scene when running a different task.
+#   red_on_green    -- released red cube stably supported by green (default task)
+#   none            -- VLM-only completion, for tasks without a predicate
 #   cubes_on_table  -- default scene: all three cubes still resting on the tabletop
 #   flowers_in_vase -- insert_flower: every rose tip at the vase mouth
-success_check: none
+success_check: red_on_green
 
 # Which arm the single-arm loop drives. The other holds the pose it had at startup.
 arm_side: right
@@ -84,17 +87,21 @@ observation_resolution: 256
 # Same rotate -> centre-crop -> letterbox contract as every other embodiment. 1280x720 is
 # 16:9 while the training rigs are 4:3, so crop to 4:3 BEFORE letterboxing or the scene
 # occupies a thin strip.
+#
+# Native upright views. The head view maps physical +X away from the base to
+# image UP and +Y to image LEFT. Keep the existing zero-shot FWD/BACK exchange
+# at execution; controller_openarm.txt describes exactly that emitted vocabulary.
+# The wrist camera looks almost horizontally forward (optical axis ~[.91,.35,-.225]
+# at right-arm home). Image up is mainly world +Z: its image height is NOT an
+# overhead depth coordinate. The OpenArm prompt uses AgentView for depth/lateral
+# alignment and wrist vision for side-grasp height/confirmation.
+# Fine-tuned mode keeps its separate legacy preprocessing; that adapter was not
+# trained on OpenArm, so matching a camera transform alone cannot ensure transfer.
 agentview_rotation_degrees: 0
 agentview_flip: none
 agentview_crop_aspect: 1.3333
-# Wrist transform. The OpenArm wrist camera is mounted rotated relative to the training
-# rig AND the two arms are mirrored, so these are per-arm values, measured on the home
-# pose by projecting world +X / +Y and the fingertips into the wrist frame:
-#   right arm -> rotation 270, flip both   (+X reads UP, +Y reads LEFT, fingertips at TOP)
-#   left  arm -> rotation  90, flip both
-# Values below are for the default `arm_side: right`; swap them together with arm_side.
-wrist_rotation_degrees: 270
-wrist_flip: both
+wrist_rotation_degrees: 0
+wrist_flip: none
 wrist_crop_aspect: 1.3333
 use_wrist_image: true
 
@@ -116,29 +123,27 @@ settle_ticks: 60
 
 # Gripper: 0 rad is fully CLOSED and the joint-range extreme is fully OPEN; the sign is
 # mirrored per arm. Measured free gap runs 0.0 m closed -> 0.1425 m open.
-gripper_close_threshold_m: 0.02
+gripper_close_threshold_m: 0.06
 empty_width_m: 0.006
 open_width_m: 0.06
 gripper_settle_s: 0.0
 gripper_min_settle_s: 0.0
 
 # ----- Safety ---------------------------------------------------------------
-# Hard lower bound on the CONTROL-POINT height, in arm_origin Z (negative is below the
-# robot's own base). Upstream's table surface sits at -0.298 and the home control point at
-# -0.221.
-#
-# The floor is checked against the control point, but the FINGER PADS hang 0.1638 m
-# further along the approach axis. At the home orientation that axis is horizontal, so the
-# pads ride at the control point's own height -- but once the jaw pitches down, the LOWEST
-# gripper geometry sits ~0.065 m below the control point. -0.225 keeps that geometry above
-# the -0.298 tabletop with ~8 mm of margin while still letting the pads reach an object on
-# the surface. Re-check after any scene/camera change.
+# Lower bound on wrist/control-point Z in arm_origin (table is at -0.298 m).
+# The controller holds the home orientation: the fingers approach horizontally.
+# At the old -0.225 floor the pad collision mesh overlaps only ~1 mm of a cube's
+# top edge, so closing is empty. At -0.250 the pads grip a 45 mm cube and the full
+# moving gripper clears the table. Verified by the contact/pick/lift regression.
+# This floor is calibrated for the fixed horizontal orientation, not pitched tools.
 enable_z_floor: true
-z_floor_m: -0.225
+z_floor_m: -0.250
 
 # ----- Models ---------------------------------------------------------------
 vlm:
   base_url: http://localhost:8000/v1
+  # Match controller_openarm.txt's emitted depth tokens; images stay upright.
+  execution_token_swap: [MV_FWD, MV_BACK]
 
 vlm_backends:
   gemini:
@@ -166,3 +171,18 @@ vlm_backends:
     model: Qwen/Qwen3.5-9B
     max_tokens: 2048
     reasoning_cot: true
+  gateway:
+    # Any OpenAI-compatible hosted gateway. Point `base_url` (or declare `base_url_env`)
+    # and `model_env` at your own endpoint; the key is read from $OPENAI_API_KEY, so no
+    # secret lives in this file. ChatGPT-style models take `max_completion_tokens`, which
+    # the client's openai dialect writes for you.
+    provider: openai
+    base_url: https://api.openai.com/v1
+    base_url_env: OPENAI_BASE_URL
+    model: gpt-6.1-sol
+    model_env: OPENAI_MODEL
+    api_key_env: OPENAI_API_KEY
+    max_tokens: 4096
+    reasoning_cot: true
+    reasoning_effort: xhigh   # low | medium | high
+    max_retries: 10

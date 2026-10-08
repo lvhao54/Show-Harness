@@ -75,26 +75,13 @@ class OpenArmConfigTests(unittest.TestCase):
                 f"{a} must be the exact opposite of {b}",
             )
 
-    def test_z_floor_keeps_the_gripper_out_of_the_table(self) -> None:
-        """The floor bounds the CONTROL POINT, and at the home orientation the pads ride at
-        that same height (the tool axis is horizontal), so the bound transfers directly.
-
-        Measured on the upstream model: the table surface is at -0.298 in ``arm_origin``
-        and the home control point at -0.221, while the lowest gripper collision geometry
-        sits ~0.064 m below the control point when the jaw points down. The floor must
-        therefore stay clear of the surface with margin for that lower bound.
-        """
-        cfg = load_yaml(CONFIG)
-        floor = float(cfg["z_floor_m"])
-        table_surface_z = -0.298
-        lowest_geom_offset_m = 0.065
-        self.assertGreater(
-            floor - lowest_geom_offset_m,
-            table_surface_z,
-            "z_floor_m must keep the whole gripper above the tabletop",
-        )
-        # ...and it must still allow the arm to reach down to the tabletop to grasp.
-        self.assertLess(floor, table_surface_z + 0.15)
+    def test_grasp_height_limits_are_shared_and_below_home(self) -> None:
+        # Actual collision clearance and pick/lift are exercised by test_openarm_grasp.
+        fine = load_yaml(CONFIG)
+        zero = load_yaml("configs/robot_openarm_zero.yaml")
+        self.assertEqual(fine["z_floor_m"], zero["z_floor_m"])
+        self.assertLess(float(fine["z_floor_m"]), -0.240)
+        self.assertGreater(float(fine["z_floor_m"]), -0.265)
 
     def test_default_wrist_transform_is_configured_for_the_selected_arm(self) -> None:
         """The wrist mount is mirrored, so rotation/flip are per-arm; they must be set."""
@@ -221,8 +208,8 @@ class OpenArmZeroShotWiringTests(unittest.TestCase):
                 f"{token}: primitives {primitives[token]} != move_vectors {vec}",
             )
 
-    def test_zero_and_fine_configs_share_the_world_and_cameras(self) -> None:
-        """Both modes must see the same world: a drift here silently changes the task."""
+    def test_zero_and_fine_configs_share_the_world(self) -> None:
+        """Share physics and safety; preprocessing belongs to each policy path."""
         zero = load_yaml(self.ZERO_CONFIG)
         fine = load_yaml(CONFIG)
         for key in (
@@ -231,11 +218,7 @@ class OpenArmZeroShotWiringTests(unittest.TestCase):
             "control_hz",
             "sim_ticks_per_command",
             "observation_resolution",
-            "agentview_rotation_degrees",
-            "agentview_flip",
             "agentview_crop_aspect",
-            "wrist_rotation_degrees",
-            "wrist_flip",
             "wrist_crop_aspect",
             "step_m",
             "z_floor_m",
@@ -244,6 +227,40 @@ class OpenArmZeroShotWiringTests(unittest.TestCase):
             "gripper_close_threshold_m",
         ):
             self.assertEqual(zero.get(key), fine.get(key), f"{key} drifted between the modes")
+
+    def test_each_mode_keeps_the_camera_contract_its_policy_needs(self) -> None:
+        """Preserve legacy fine-tuned transforms and upright zero-shot views.
+
+        The zero-shot OpenArm prompt describes its execution-time FWD/BACK
+        exchange explicitly; it does not treat the wrist side view as overhead.
+        """
+        zero = load_yaml(self.ZERO_CONFIG)
+        fine = load_yaml(CONFIG)
+        self.assertEqual(int(fine["wrist_rotation_degrees"]), 270)
+        self.assertEqual(str(fine["wrist_flip"]).lower(), "both")
+        # Zero-shot: native orientation, no flip.
+        self.assertEqual(str(zero.get("agentview_flip", "none")).lower(), "none")
+        self.assertEqual(str(zero.get("wrist_flip", "none")).lower(), "none")
+        self.assertEqual(int(zero.get("agentview_rotation_degrees", 0)), 0)
+        self.assertEqual(int(zero.get("wrist_rotation_degrees", 0)), 0)
+        # ...compensated in the token->motion mapping.
+        from core.launch import execution_token_swap_pairs
+        from core.config import resolve_vlm_config
+
+        resolved = dict(zero)
+        resolved["vlm"] = resolve_vlm_config(zero, backend="gateway")
+        self.assertEqual(
+            execution_token_swap_pairs(resolved),
+            (("MV_FWD", "MV_BACK"),),
+            "the zero-shot OpenArm config must swap FWD/BACK at execution time",
+        )
+
+    def test_zero_shot_depth_axis_is_corrected_exactly_once(self) -> None:
+        """Guard against fixing the same mismatch twice (flip AND swap), which would
+        cancel out and look like no fix at all."""
+        zero = load_yaml(self.ZERO_CONFIG)
+        flipped = str(zero.get("agentview_flip", "none")).lower() != "none"
+        self.assertFalse(flipped)
 
     def test_session_defaults_to_the_config_arm(self) -> None:
         """The Piper default arm must not leak into the OpenArm rig (it is camera-specific)."""

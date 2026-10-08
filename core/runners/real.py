@@ -10,9 +10,10 @@ and a :class:`~interpreters.franka_atomic_controller.FrankaAtomicController`
 The control contract is identical to the simulator: the planner expands the task
 into ordered subgoals, and for each subgoal the controller VLM emits exactly one
 atomic token per step (``MV_*`` / ``GRASP`` / ``RELEASE`` / ``DONE``). A ``DONE``
-advances to the next subgoal; ``DONE`` on the final subgoal completes the task
-(there is no simulator ``check_success`` on hardware -- the VLM judging every stage
-done, including the final place, is the success signal).
+advances to the next subgoal; ``DONE`` on the final subgoal completes the plan.
+On hardware, the VLM judging every stage done is the success signal. Simulation
+sessions can supply an independent ``task_success_check`` predicate, which must
+also pass before plan completion is recorded as task success.
 
 Logging reuses :class:`~core.record.episode_logger.EpisodeLogger`, so the on-disk layout,
 per-step analysis frames, and the compiled visualization video keep one shared
@@ -31,7 +32,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import numpy as np
 
@@ -86,6 +87,7 @@ class RealEpisodeRunner:
         action_ablation_plugin: Any = None,
         recent_moves_max: int = RECENT_MOVES_MAX,
         viewer: Any = None,
+        task_success_check: Optional[Callable[[], bool]] = None,
     ) -> None:
         self.session = session
         self.controller = controller
@@ -115,6 +117,9 @@ class RealEpisodeRunner:
         self._prev_target_in_wrist = False
         self.recent_moves_max = max(1, int(recent_moves_max))
         self.viewer = viewer
+        # Optional environment-level success predicate (e.g. OpenArm scene truth).
+        # None preserves the VLM-only completion semantics.
+        self.task_success_check = task_success_check
         # DAGGER: real-time human keyboard override (plugins.dagger, single mode). Keys
         # arrive on the live view's stream thread; the runner consumes them at step
         # boundaries and preempts/drops in-flight VLM decisions (see
@@ -157,6 +162,8 @@ class RealEpisodeRunner:
         # popped one per step open-loop. Empty -> re-query the VLM.
         chunk_queue: list[str] = []
         video_path: Any = self.logger.run_dir / "rollout_failure.mp4"
+        environment_success: Optional[bool] = None
+        plan_complete = False
         self._t0 = time.monotonic()
         self._last_vlm_ms = None
 
@@ -251,24 +258,18 @@ class RealEpisodeRunner:
             self._print_plan(subgoals)
 
             for step_idx in range(self.max_steps):
-                steps = step_idx + 1
-                loop_started = time.monotonic()
                 subgoal = subgoals[current_index]
                 subgoal_step = step_idx - subgoal_start_step
 
-                # Per-subgoal step cap: abandon this stage and move to the next one.
+                # Later stages depend on this one's completion: timing out a GRASP
+                # must never authorize LIFT/PLACE with an empty or open gripper.
+                # Only an accepted DONE below may advance to the next stage.
                 if subgoal_step >= self.config.max_subgoal_steps:
-                    current_index += 1
-                    if current_index >= len(subgoals):
-                        end_reason = "subgoal_step_cap_exceeded"
-                        break
-                    subgoal = subgoals[current_index]
-                    subgoal_start_step = step_idx
-                    subgoal_step = 0
-                    current_direction = None
-                    recent_moves.clear()
-                    chunk_queue = []
+                    end_reason = "subgoal_step_cap_exceeded"
+                    break
 
+                steps = step_idx + 1
+                loop_started = time.monotonic()
                 obs = self.session.get_observation()
                 agentview, wrist = self._images(obs)
                 agentview, wrist = self._premark_affordance(
@@ -503,6 +504,15 @@ class RealEpisodeRunner:
                         recovery_note += " (at Z floor; descent exhausted)"
 
                 plan_complete = subgoal_done and (current_index + 1 >= len(subgoals))
+                if plan_complete:
+                    # Complete plans can still fail the physical task. Evaluate an
+                    # injected scene predicate before writing the final step/video so
+                    # their success flags agree with the episode's measured outcome.
+                    if self.task_success_check is not None:
+                        end_reason = "task_success_check_failed"
+                        environment_success = bool(self.task_success_check())
+                    success = environment_success is not False
+                    end_reason = "plan_complete" if success else "task_success_check_failed"
                 if recovery_decision is not None and recovery_decision.reset_history:
                     current_direction = None
                     recent_moves.clear()
@@ -548,7 +558,7 @@ class RealEpisodeRunner:
                     response=response,
                     obs=obs,
                     subgoal_done=subgoal_done,
-                    success=plan_complete,
+                    success=success,
                     recovery_decision=recovery_decision,
                     human_kind=human_kind,
                 )
@@ -586,8 +596,6 @@ class RealEpisodeRunner:
                 self._write_action_table(step_idx)
 
                 if plan_complete:
-                    success = True
-                    end_reason = "plan_complete"
                     break
                 if (
                     recovery_decision is not None
@@ -632,6 +640,8 @@ class RealEpisodeRunner:
                     "steps": steps,
                     "max_steps": self.max_steps,
                     "end_reason": end_reason,
+                    "plan_complete": plan_complete,
+                    "environment_success": environment_success,
                     "video_path": str(video_path),
                     "run_dir": str(self.logger.run_dir),
                     "control_mode": "real",

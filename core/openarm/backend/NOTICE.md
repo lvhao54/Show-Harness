@@ -16,8 +16,9 @@ run the OpenArm simulator without checking that repository out. Files were copie
 | `assets/openarm2.xml`, `assets/openarm2_insert_flower.xml` | `assets/` (scene furniture only) |
 
 Copyright 2026 Enactic, Inc. — licensed under the Apache License, Version 2.0; you may
-obtain a copy at <http://www.apache.org/licenses/LICENSE-2.0>. The changes are limited to
-import paths, the scene loader, and dropping the hardware-driver half of the runtime. The
+obtain a copy at <http://www.apache.org/licenses/LICENSE-2.0>. Local changes include
+import paths, the scene loader, dropping the hardware-driver half of the runtime,
+and adding a link4/pedestal collision limit with calibrated IK weights. The
 robot model, pedestal, meshes and the inverse-kinematics solver are **not** vendored: they
 come from the `openarm-mujoco` and `openarm-control` wheels
 (`requirements/requirements-openarm.txt`).

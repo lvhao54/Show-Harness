@@ -19,10 +19,12 @@ hands to the policy are shaped like the ones it was trained on.
 
 Task success
 ------------
-Two predicates ship, both read from MuJoCo state that the policy never sees:
+Three predicates ship, all read from MuJoCo state that the policy never sees:
 
 * ``"cubes_on_table"`` -- the default scene's three cubes are all still resting on the
   tabletop (nothing knocked off). A cheap "did the arm wreck the scene" check.
+* ``"red_on_green"`` -- the red cube rests on the green cube, which rests on the
+  table; both cubes are stationary and clear of robot contact.
 * ``"flowers_in_vase"`` -- the ``insert_flower`` scene's task: every rose tip is brought to
   the vase mouth. **This is a GEOMETRIC relation, not physical containment**: the upstream
   vase model carries no collision hull through the aperture (measured with a downward
@@ -50,7 +52,7 @@ from core.openarm.sim import make_openarm_backend
 from core.record.images import prepare_view
 
 #: Success predicates the session understands (``"none"`` disables checking).
-SUCCESS_CHECKS = ("none", "cubes_on_table", "flowers_in_vase")
+SUCCESS_CHECKS = ("none", "cubes_on_table", "red_on_green", "flowers_in_vase")
 
 #: Default scene's cube bodies, from the upstream ``openarm2.xml`` keyframe.
 _CUBE_BODIES = ("box_red", "box_green", "box_blue")
@@ -101,7 +103,7 @@ class OpenArmSession:
     # -- lifecycle ---------------------------------------------------------
     def connect(self) -> "OpenArmSession":
         """Build the MuJoCo world, start it holding, and wrap the driven arm."""
-        cfg = self.config
+        self._success_check_name()  # Reject typos before allocating the simulator.
         self._connect_openarm()
         self._connected = True
         return self
@@ -243,19 +245,25 @@ class OpenArmSession:
             return None
 
     # -- task predicates ---------------------------------------------------
-    def success(self) -> bool:
-        """Whether the configured predicate currently holds (``"none"`` -> False)."""
+    def _success_check_name(self) -> str:
         check = str(self.config.success_check or "none").strip().lower()
         if check not in SUCCESS_CHECKS:
             raise ValueError(
                 f"Unknown success_check {check!r}; expected one of {list(SUCCESS_CHECKS)}"
             )
+        return check
+
+    def success(self) -> bool:
+        """Whether the configured predicate currently holds (``"none"`` -> False)."""
+        check = self._success_check_name()
         if check == "none":
             return False
         if self.backend is None:
             return False
         if check == "cubes_on_table":
             return self._cubes_on_table()
+        if check == "red_on_green":
+            return self._red_on_green()
         return self._flowers_in_vase()
 
     def _cubes_on_table(self) -> bool:
@@ -274,6 +282,54 @@ class OpenArmSession:
             if not (0.06 <= x <= 0.88 and -0.55 <= y <= 0.55):
                 return False
         return True
+
+    def _red_on_green(self) -> bool:
+        """A released, stationary stack in the default cube scene.
+
+        Geometry alone can mistake a held or airborne cube for a completed stack.
+        Require supporting contacts (red/green and green/table), a centered red
+        cube, low free-joint velocities, and no contact with either robot arm.
+        This reads simulator truth only when evaluating; observations remain visual.
+        """
+        if self.config.scene:
+            return False
+        model, data = self.backend.model, self.backend.data
+        red = model.geom("box_red_geom").id
+        green = model.geom("box_green_geom").id
+        table = model.geom("table_top").id
+        red_pos, green_pos = data.geom_xpos[red], data.geom_xpos[green]
+        red_extent = np.abs(data.geom_xmat[red].reshape(3, 3)) @ model.geom_size[red]
+        green_extent = np.abs(data.geom_xmat[green].reshape(3, 3)) @ model.geom_size[green]
+        # Keep the red center of mass inside the support footprint with a 10%
+        # margin. The vertical tolerance permits the solver's small penetration.
+        if np.any(np.abs((red_pos - green_pos)[:2]) > 0.9 * green_extent[:2]):
+            return False
+        expected_height = red_extent[2] + green_extent[2]
+        if abs(float(red_pos[2] - green_pos[2]) - expected_height) > 0.003:
+            return False
+        for body in ("box_red", "box_green"):
+            dof = int(model.jnt_dofadr[model.joint(f"{body}_free").id])
+            velocity = data.qvel[dof:dof + 6]
+            if np.linalg.norm(velocity[:3]) > 0.01 or np.linalg.norm(velocity[3:]) > 0.1:
+                return False
+
+        robot_geoms = {
+            geom_id for geom_id in range(model.ngeom)
+            if model.body(int(model.geom_bodyid[geom_id])).name.startswith("openarm_")
+        }
+        red_supported = green_supported = False
+        for contact in data.contact:
+            if contact.dist > 0.001:
+                continue
+            pair = {int(contact.geom1), int(contact.geom2)}
+            if (red in pair or green in pair) and pair & robot_geoms:
+                return False
+            # Side contacts cannot support a stack, even if the centers line up.
+            if abs(float(contact.frame[2])) < 0.9:
+                continue
+            red_supported |= pair == {red, green}
+            green_supported |= pair == {green, table}
+        return red_supported and green_supported
 
     def _flowers_in_vase(self) -> bool:
         """Every rose tip is within the vase mouth aperture.

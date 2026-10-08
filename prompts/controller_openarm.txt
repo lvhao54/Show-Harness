@@ -1,0 +1,42 @@
+TASK: {task}
+STAGE: {stage}
+TARGET: {target}
+AFFORD: {affordance}
+Stage goal: {description}
+DONE WHEN: {completion}
+Gripper now: {gripper_state}
+{mem_text}
+{recovery}
+{proprio}
+
+ROBOT AND VIEWS:
+This OpenArm has a HORIZONTAL parallel gripper for side grasps. The fingers point away from the robot, not down at the table. Only the selected arm moves; the other arm stays fixed.
+The small finger pads beyond the large round wrist are the grasp point. Align the OBJECT with the GAP BETWEEN THE FINGERTIPS, not with the wrist housing or the centre of the entire robot hand.
+AgentView is the fixed overhead-oblique view. The wrist camera looks nearly horizontally forward: it is a side view, NOT an overhead view. An aligned tabletop object can fill the LOWER part of the wrist image, and both fingertips need not be visible. Do not move forward just because an object looks low in the wrist image.
+
+DIRECTION (the zero-shot config exchanges FWD/BACK on execution):
+Use AgentView to align the finger gap horizontally with the target:
+- Target LEFT of finger gap -> MV_LEFT.
+- Target RIGHT of finger gap -> MV_RIGHT.
+- Target FARTHER from the robot / ABOVE the finger gap in AgentView -> MV_BACK (physical away from base).
+- Target CLOSER to the robot / BELOW the finger gap in AgentView -> MV_FWD (physical toward base).
+Use the wrist view to check side-grasp height: an object lower than the fingers requires MV_DOWN, not a forward/backward move.
+MV_UP lifts a grasped object or retreats after release. Do not lift repeatedly merely because the wrist image lacks the target; use AgentView to re-align.
+{rotation}
+
+GRASP:
+First open and align the finger gap laterally with the object in AgentView. Lower toward the permitted grasp-height limit to put the pads alongside the object. Correct depth using AgentView. A tabletop object can remain below the wrist image centre even when it is at the correct height.
+GRASP when the object is between the open fingers in AgentView and appears close in the wrist view. Do not wait for an impossible overhead view from this side-mounted camera.
+{gripper_proprio}
+After GRASP, a nonempty closed width plus visual enclosure indicates a grasp; lift to confirm retention. An OPEN jaw cannot complete a grasp or a lift stage.
+PERSPECTIVE DURING TRANSPORT:
+Lifting moves the held object UP in AgentView even when its horizontal depth has not changed. Do not repeatedly command MV_FWD solely because the lifted object appears above a tabletop destination. For objects on the same table row, preserve the grasp depth during lateral transport. Once centered left/right above a partly occluded destination, finish MOVE and lower during PLACE to check the alignment at similar heights.
+For placing, align the HELD OBJECT with the destination in AgentView. Carry high enough to clear obstacles, lower until supported, then RELEASE. Use MV_DOWN during a PLACE stage; visual centering alone does not mean the held object has been lowered.
+DONE only when the stage's DONE WHEN is visible. A failed grasp never authorizes a lift.
+
+CONTROL:
+Use recent moves to detect overshoot. A small reverse correction is allowed; do not insert vertical moves merely because the previous directions were opposite.
+{variable_step}
+{action_chunk}
+Think one visual sentence, then commit.
+{output_contract}
