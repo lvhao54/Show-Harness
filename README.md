@@ -100,6 +100,9 @@ you need them. `bash scripts/setup.sh` with no arguments prints which already ex
 
 `bash scripts/setup.sh base --real` adds the Franka/Piper hardware layer (RealSense, ROS
 shims, teleop window). Zero-shot and sim work do not need it.
+`bash scripts/setup.sh base --openarm` adds the OpenArm MuJoCo stack
+([docs/simulators.md](docs/simulators.md)); its `insert_flower` scene additionally fetches
+its meshes once with `bash scripts/model/download_vlabench_assets.sh`.
 
 Serving is its own process, so the harness talks to any OpenAI-compatible endpoint — a
 hosted model, or a colleague's server — without `.venv-vllm` existing at all.

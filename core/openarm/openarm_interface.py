@@ -2,8 +2,8 @@
 
 ``RealAtomicController`` talks to a robot through exactly four methods
 (``get_ee_pose`` / ``get_gripper_position`` / ``control_gripper`` /
-``update_desired_ee_pose``). This class implements them against the upstream
-``embodied_ai-llm`` MuJoCo backend, so the **entire** real-arm stack -- setpoint
+``update_desired_ee_pose``). This class implements them against the vendored MuJoCo
+backend (:mod:`core.openarm.backend`), so the **entire** real-arm stack -- setpoint
 integration, per-command clamps, the Z floor, gripper settle + empty-grasp detection, and
 the ``smooth`` / ``variable_step`` / ``rotation`` plugin mounts -- runs unchanged in
 simulation. Nothing about OpenArm's dynamics is reimplemented here.
@@ -28,7 +28,7 @@ rather than assumed:
 3. **One command is not one simulation tick.** The upstream IK is a *damped local
    solver* (``ik_max_iters=5``): a single solve lands only part-way to a distant target,
    so the arm tracks properly only when the target is re-solved every control tick -- the
-   same way ``embodied_ai-llm``'s runtime control thread drives it. Each
+   same way the upstream runtime's control thread drives it. Each
    :meth:`update_desired_ee_pose` here therefore re-solves and advances the physics by
    ``sim_ticks_per_command`` steps.
 
@@ -83,7 +83,7 @@ class OpenArmSimRobot:
     """The four-method robot duck type, backed by the upstream OpenArm MuJoCo backend.
 
     Args:
-        backend: an upstream ``robot_runtime.robots.openarm.simulation.SimulationBackend``
+        backend: a :class:`core.openarm.backend.simulation.SimulationBackend`
             (see :func:`core.openarm.sim.make_openarm_backend`), already started.
         side: which arm this controller drives -- ``"right"`` or ``"left"``. The other arm
             holds the pose it had at construction, so a single-arm Show-Harness loop never

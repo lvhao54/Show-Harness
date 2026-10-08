@@ -1,0 +1,218 @@
+<mujoco model="rose_0">
+  <compiler angle="radian"/>
+  <default>
+    <default class="visual">
+      <geom group="2" type="mesh" contype="0" conaffinity="0"  mass="0.01"/>
+    </default>
+    <default class="collision">
+    <geom group="3" type="mesh" solref="0.001 2"  solimp="0.998 0.998 0.001" mass="0"/>
+        <default class="grasppoint">
+          <site type="sphere" size="0.01" group="4" rgba="0 0 1 1"/>
+      </default>
+</default>
+  </default>
+  <asset>
+    <texture type="2d" name="material_0" file="material_0.png" />
+    <material name="material_0" texture="material_0" specular="0.4000000000000001" shininess="0.001" />
+    <mesh file="rose_0.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_0.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_1.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_2.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_3.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_4.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_5.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_6.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_7.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_8.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_9.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_10.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_11.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_12.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_13.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_14.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_15.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_16.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_17.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_18.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_19.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_20.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_21.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_22.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_23.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_24.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_25.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_26.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_27.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_28.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_29.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_30.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_31.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_32.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_33.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_34.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_35.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_36.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_37.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_38.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_39.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_40.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_41.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_42.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_43.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_44.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_45.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_46.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_47.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_48.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_49.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_50.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_51.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_52.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_53.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_54.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_55.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_56.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_57.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_58.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_59.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_60.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_61.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_62.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_63.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_64.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_65.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_66.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_67.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_68.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_69.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_70.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_71.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_72.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_73.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_74.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_75.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_76.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_77.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_78.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_79.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_80.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_81.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_82.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_83.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_84.obj" scale="0.20000 0.20000 0.20000" />
+    <mesh file="rose_0_collision_85.obj" scale="0.20000 0.20000 0.20000" />
+    <texture type="2d" name="Red_rose" file="Red_rose.png"/>
+    <material name="material_0.008" texture="Red_rose" specular="0.0" shininess="0.0"/>
+    <mesh file="stem.obj" scale="0.1 0.15 0.15"/>
+    <mesh file="stem_collision_0.obj" scale="0.1 0.15 0.15"/>
+    <mesh file="stem_collision_1.obj" scale="0.1 0.15 0.15"/>
+    <mesh file="stem_collision_2.obj" scale="0.1 0.15 0.15"/>
+    <mesh file="stem_collision_3.obj" scale="0.1 0.15 0.15"/>
+    <mesh file="stem_collision_4.obj" scale="0.1 0.15 0.15"/>
+    <mesh file="stem_collision_5.obj" scale="0.1 0.15 0.15"/>
+    <mesh file="stem_collision_6.obj" scale="0.1 0.15 0.15"/>
+  </asset>
+  <worldbody>
+    <body name="rose_0" pos="-0.003 0.13 -0.005" euler="0 -1.57 0">
+      <geom material="material_0" mesh="rose_0" class="visual" />
+      <geom mesh="rose_0_collision_0" rgba="0.5304274553046447 0.9320469207642009 0.473109623340461 1" class="collision" />
+      <geom mesh="rose_0_collision_1" rgba="0.9405349658245106 0.3569289200849477 0.3456826927830021 1" class="collision" />
+      <geom mesh="rose_0_collision_2" rgba="0.6194915416531045 0.4993265314733366 0.8498124630676939 1" class="collision" />
+      <geom mesh="rose_0_collision_3" rgba="0.744272282115345 0.8279207197723953 0.888175141467883 1" class="collision" />
+      <geom mesh="rose_0_collision_4" rgba="0.6401279654663398 0.1250681721047393 0.20122514304011507 1" class="collision" />
+      <geom mesh="rose_0_collision_5" rgba="0.21560159183254934 0.2596565218282255 0.10661099013492437 1" class="collision" />
+      <geom mesh="rose_0_collision_6" rgba="0.8423016726643057 0.7202138231670699 0.013965736485550662 1" class="collision" />
+      <geom mesh="rose_0_collision_7" rgba="0.4877114647462043 0.30483621877023837 0.193144126643365 1" class="collision" />
+      <geom mesh="rose_0_collision_8" rgba="0.30520666425042475 0.879686621266086 0.08818072958649692 1" class="collision" />
+      <geom mesh="rose_0_collision_9" rgba="0.9098370213897103 0.025744309737433135 0.36233573600688607 1" class="collision" />
+      <geom mesh="rose_0_collision_10" rgba="0.6455714963971182 0.5475086777160022 0.8625913288500502 1" class="collision" />
+      <geom mesh="rose_0_collision_11" rgba="0.9617552843534961 0.32534897852061617 0.5006729815868982 1" class="collision" />
+      <geom mesh="rose_0_collision_12" rgba="0.09283976858254217 0.9333869005074517 0.04448625071013579 1" class="collision" />
+      <geom mesh="rose_0_collision_13" rgba="0.19483805510178742 0.8370467677772022 0.8846471898685749 1" class="collision" />
+      <geom mesh="rose_0_collision_14" rgba="0.3319576586991284 0.5895127435399801 0.9709743238690499 1" class="collision" />
+      <geom mesh="rose_0_collision_15" rgba="0.24250587633746923 0.5784988533937157 0.43698506646790236 1" class="collision" />
+      <geom mesh="rose_0_collision_16" rgba="0.15648064573907183 0.42924708873486506 0.8105832859101664 1" class="collision" />
+      <geom mesh="rose_0_collision_17" rgba="0.8548639208021895 0.9823498415022978 0.050313884466674286 1" class="collision" />
+      <geom mesh="rose_0_collision_18" rgba="0.049497120444590204 0.41808701254443403 0.36836970950979187 1" class="collision" />
+      <geom mesh="rose_0_collision_19" rgba="0.05369800377652367 0.7507323532206837 0.25210957779844034 1" class="collision" />
+      <geom mesh="rose_0_collision_20" rgba="0.7523128379234764 0.4102046439963858 0.395768260374613 1" class="collision" />
+      <geom mesh="rose_0_collision_21" rgba="0.6104550120523436 0.48986666321614414 0.8520447434184505 1" class="collision" />
+      <geom mesh="rose_0_collision_22" rgba="0.9897800249111343 0.8494498769101452 0.26197591787784547 1" class="collision" />
+      <geom mesh="rose_0_collision_23" rgba="0.8233303825523264 0.9930049656622604 0.9258274154574246 1" class="collision" />
+      <geom mesh="rose_0_collision_24" rgba="0.9781909643440818 0.7655018070351495 0.05656331756741828 1" class="collision" />
+      <geom mesh="rose_0_collision_25" rgba="0.13872862568177313 0.4515140614072942 0.5641353790772139 1" class="collision" />
+      <geom mesh="rose_0_collision_26" rgba="0.33842105585540416 0.160856692052747 0.976315102247894 1" class="collision" />
+      <geom mesh="rose_0_collision_27" rgba="0.0347733393516384 0.9205990582647879 0.9388460248065247 1" class="collision" />
+      <geom mesh="rose_0_collision_28" rgba="0.27760511869041116 0.4585357125671998 0.1227934423795114 1" class="collision" />
+      <geom mesh="rose_0_collision_29" rgba="0.4524554835959248 0.844417203285884 0.4259090190643796 1" class="collision" />
+      <geom mesh="rose_0_collision_30" rgba="0.4346182333364237 0.39830690755484277 0.7225171919820339 1" class="collision" />
+      <geom mesh="rose_0_collision_31" rgba="0.7892202007085819 0.6239309373480624 0.2908200449260391 1" class="collision" />
+      <geom mesh="rose_0_collision_32" rgba="0.21961872498004442 0.8982890920735417 0.3050650034427257 1" class="collision" />
+      <geom mesh="rose_0_collision_33" rgba="0.7014305014213718 0.7062907889430177 0.76241975520272 1" class="collision" />
+      <geom mesh="rose_0_collision_34" rgba="0.2937959295317345 0.44615973027058387 0.5140286360016322 1" class="collision" />
+      <geom mesh="rose_0_collision_35" rgba="0.26463131837893195 0.6008552024595007 0.727052904646732 1" class="collision" />
+      <geom mesh="rose_0_collision_36" rgba="0.1168616543525186 0.6480974678647778 0.05539440668820239 1" class="collision" />
+      <geom mesh="rose_0_collision_37" rgba="0.16202247642747192 0.7895074487648129 0.8547692707668892 1" class="collision" />
+      <geom mesh="rose_0_collision_38" rgba="0.7068743077983728 0.7737926215250154 0.07281777652365196 1" class="collision" />
+      <geom mesh="rose_0_collision_39" rgba="0.18238676762202521 0.4244902280659818 0.6726849471507983 1" class="collision" />
+      <geom mesh="rose_0_collision_40" rgba="0.44031966485187013 0.6441783239234343 0.4246435315989461 1" class="collision" />
+      <geom mesh="rose_0_collision_41" rgba="0.7952100578867367 0.4205494747205274 0.11752242635313959 1" class="collision" />
+      <geom mesh="rose_0_collision_42" rgba="0.9849378443779158 0.6129509556809991 0.4771365545657861 1" class="collision" />
+      <geom mesh="rose_0_collision_43" rgba="0.6300963623307102 0.6270118921536348 0.7571178052313807 1" class="collision" />
+      <geom mesh="rose_0_collision_44" rgba="0.4612493738012515 0.9640175466961608 0.16098087882832102 1" class="collision" />
+      <geom mesh="rose_0_collision_45" rgba="0.6734039149277798 0.9049123597868869 0.6270660914851974 1" class="collision" />
+      <geom mesh="rose_0_collision_46" rgba="0.5501321891449438 0.1949810133690978 0.2770552207576592 1" class="collision" />
+      <geom mesh="rose_0_collision_47" rgba="0.6941001651642735 0.773132716767597 0.7719499757591559 1" class="collision" />
+      <geom mesh="rose_0_collision_48" rgba="0.6091697320490957 0.1191721974961012 0.8676382885546707 1" class="collision" />
+      <geom mesh="rose_0_collision_49" rgba="0.7091607455743162 0.403375752631984 0.9865533707941593 1" class="collision" />
+      <geom mesh="rose_0_collision_50" rgba="0.9234460999587164 0.38868712223203616 0.8766856635396875 1" class="collision" />
+      <geom mesh="rose_0_collision_51" rgba="0.6377661575305281 0.4576740431760148 0.9104985386969293 1" class="collision" />
+      <geom mesh="rose_0_collision_52" rgba="0.19308927569584478 0.8936745162597682 0.7861437914004367 1" class="collision" />
+      <geom mesh="rose_0_collision_53" rgba="0.9774727703097941 0.2254077266010578 0.9772445540371439 1" class="collision" />
+      <geom mesh="rose_0_collision_54" rgba="0.2791259091500715 0.872752386337723 0.33517897290164056 1" class="collision" />
+      <geom mesh="rose_0_collision_55" rgba="0.9347198000587811 0.5938442164833999 0.7215035508126564 1" class="collision" />
+      <geom mesh="rose_0_collision_56" rgba="0.3461599504717001 0.5555125222731668 0.7842995994945293 1" class="collision" />
+      <geom mesh="rose_0_collision_57" rgba="0.6896399109103043 0.00591255364778942 0.8450573643560466 1" class="collision" />
+      <geom mesh="rose_0_collision_58" rgba="0.6865364019279268 0.21193936503882915 0.3076975816247739 1" class="collision" />
+      <geom mesh="rose_0_collision_59" rgba="0.45936464898135276 0.43634029853254486 0.011500084777987363 1" class="collision" />
+      <geom mesh="rose_0_collision_60" rgba="0.9766271993601475 0.9903116622721286 0.7410166167170149 1" class="collision" />
+      <geom mesh="rose_0_collision_61" rgba="0.3945356310635789 0.9230189021062496 0.8718685779049693 1" class="collision" />
+      <geom mesh="rose_0_collision_62" rgba="0.04644144136311612 0.4253214343299294 0.8904362292195346 1" class="collision" />
+      <geom mesh="rose_0_collision_63" rgba="0.3385094667807158 0.11420940159439263 0.014103686295403595 1" class="collision" />
+      <geom mesh="rose_0_collision_64" rgba="0.9780481707443415 0.8085601670536017 0.7898822819951141 1" class="collision" />
+      <geom mesh="rose_0_collision_65" rgba="0.5362878278057702 0.3265912010455808 0.0685726193101216 1" class="collision" />
+      <geom mesh="rose_0_collision_66" rgba="0.5744364997163567 0.04460452214280086 0.3072861459178501 1" class="collision" />
+      <geom mesh="rose_0_collision_67" rgba="0.39397167175654735 0.370916944405393 0.875001588028771 1" class="collision" />
+      <geom mesh="rose_0_collision_68" rgba="0.17671240329451066 0.12357720570318087 0.6210755187582061 1" class="collision" />
+      <geom mesh="rose_0_collision_69" rgba="0.1715967489673309 0.870691860238696 0.845979440897489 1" class="collision" />
+      <geom mesh="rose_0_collision_70" rgba="0.17765503836857 0.5788958798119237 0.7403182909095846 1" class="collision" />
+      <geom mesh="rose_0_collision_71" rgba="0.06306792145429863 0.911929590061871 0.038456447036586794 1" class="collision" />
+      <geom mesh="rose_0_collision_72" rgba="0.8558787309603263 0.9253371216536689 0.17884523328151092 1" class="collision" />
+      <geom mesh="rose_0_collision_73" rgba="0.5919309303688368 0.6779975494303921 0.6314589943950855 1" class="collision" />
+      <geom mesh="rose_0_collision_74" rgba="0.22856096954982508 0.4367123140249045 0.612991086640932 1" class="collision" />
+      <geom mesh="rose_0_collision_75" rgba="0.008989346153778666 0.39153896621314244 0.8602126743274986 1" class="collision" />
+      <geom mesh="rose_0_collision_76" rgba="0.8521808800856827 0.6921942207680722 0.7309154595379925 1" class="collision" />
+      <geom mesh="rose_0_collision_77" rgba="0.9277921916789492 0.4414548484487233 0.8017737541058814 1" class="collision" />
+      <geom mesh="rose_0_collision_78" rgba="0.3898226819246645 0.9375274217723564 0.7416079751627067 1" class="collision" />
+      <geom mesh="rose_0_collision_79" rgba="0.5630870924098687 0.6976980683841585 0.06767422755883379 1" class="collision" />
+      <geom mesh="rose_0_collision_80" rgba="0.9704768849782972 0.908352717694375 0.9294750266031305 1" class="collision" />
+      <geom mesh="rose_0_collision_81" rgba="0.7873582303694522 0.4407397077530737 0.20242263084644774 1" class="collision" />
+      <geom mesh="rose_0_collision_82" rgba="0.9838139257833277 0.22456102721916704 0.3215200547779631 1" class="collision" />
+      <geom mesh="rose_0_collision_83" rgba="0.5117808266595445 0.08434399436356865 0.7390504939674518 1" class="collision" />
+      <geom mesh="rose_0_collision_84" rgba="0.2702288527879897 0.7381210240877425 0.323380920090373 1" class="collision" />
+      <geom mesh="rose_0_collision_85" rgba="0.4427805051786826 0.9885594866147196 0.9515125361468325 1" class="collision" />
+    </body>
+    <body name="stem" euler="0 0 1.57">
+      <geom material="material_0.008" mesh="stem" class="visual"/>
+      <geom mesh="stem_collision_0" rgba="0.44908201563273975 0.06962104570508076 0.25412013608122486 1" class="collision"/>
+      <geom mesh="stem_collision_1" rgba="0.5429590981245678 0.4455104916162016 0.09284013576200667 1" class="collision"/>
+      <geom mesh="stem_collision_2" rgba="0.693514201852002 0.550695760282011 0.7489974360253299 1" class="collision"/>
+      <geom mesh="stem_collision_3" rgba="0.1166141736250551 0.26398167314080156 0.6226262646727582 1" class="collision"/>
+      <geom mesh="stem_collision_4" rgba="0.7707000257996462 0.9028793871684093 0.8201949924688638 1" class="collision"/>
+      <geom mesh="stem_collision_5" rgba="0.40703778131424173 0.012366929929725101 0.15216946874101267 1" class="collision"/>
+      <geom mesh="stem_collision_6" rgba="0.6603441755279615 0.8483417642301677 0.49415910917645844 1" class="collision"/>
+      <geom type="sphere" size="0.01" group="3" name="weight" mass="0.01" pos="-0.1 0 -0.02"/>
+    </body>
+  <site class="grasppoint" pos="0 0.04 0"/>
+  </worldbody>
+</mujoco>

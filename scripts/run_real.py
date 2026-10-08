@@ -94,10 +94,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--robot-config", default=str(ROOT / "configs" / "robot_franka.yaml"))
     parser.add_argument(
         "--arm",
-        default="left",
+        default=None,
         choices=["left", "right"],
         help="Piper only: which arm the autonomous rollout drives. The rig is dual-arm "
         "and its config is unified, but the VLM controller commands ONE arm.",
+    )
+    parser.add_argument(
+        "--scene",
+        default=None,
+        help="OpenArm simulator only: omit for the default three-cube tabletop, or "
+        "`insert_flower` (needs scripts/model/download_vlabench_assets.sh).",
+    )
+    parser.add_argument(
+        "--success-check",
+        default=None,
+        help="OpenArm simulator only: ground-truth predicate for the log "
+        "(none | cubes_on_table | flowers_in_vase).",
     )
     parser.add_argument(
         "--begin-pose",
@@ -211,8 +223,27 @@ def main() -> int:
         # into begin_joints, so every consumer below reads the key it always has.
         if args.begin_pose:
             robot_cfg["begin_pose"] = args.begin_pose
-        robot_cfg = arm_config(robot_cfg, args.arm)
-        print(f"Piper arm: {args.arm} (begin pose: {robot_cfg.get('begin_pose', 'begin_joints')})")
+        piper_arm = args.arm or "left"
+        robot_cfg = arm_config(robot_cfg, piper_arm)
+        print(f"Piper arm: {piper_arm} (begin pose: {robot_cfg.get('begin_pose', 'begin_joints')})")
+    elif hardware == "openarm":
+        # The OpenArm world starts from its own MJCF keyframe, so there is no begin
+        # pose to home to. --arm picks which arm the controller drives; the other
+        # holds the pose it had at startup.
+        if args.begin_pose:
+            raise ValueError(
+                "--begin-pose does not apply to the OpenArm simulator: the world starts "
+                "from the MJCF 'home' keyframe. Use --arm left|right to pick the arm."
+            )
+        # --arm overrides the config's arm_side for this run; without it the config wins
+        # (the Piper default of "left" must NOT leak into the OpenArm rig, whose own
+        # config names the arm the camera transforms were measured for).
+        if args.arm:
+            robot_cfg["arm_side"] = args.arm
+        print(
+            f"OpenArm (MuJoCo) arm: {robot_cfg.get('arm_side', 'right')} "
+            f"(scene: {robot_cfg.get('scene') or 'default cubes'})"
+        )
     elif args.begin_pose:
         # Franka: an explicit --begin-pose both selects the named pose (poses.<name>
         # in robot_franka.yaml) and enables the begin move for this run; without the
@@ -309,7 +340,7 @@ def main() -> int:
         # pose and the controller setpoint is captured there.
         if hardware == "piper":
             move_to_begin_on_init(cfg, session)
-        else:
+        elif hardware == "franka":
             move_to_begin_franka(cfg, session)
         controller.sync_from_robot()
         if controller.z_floor_m is not None:

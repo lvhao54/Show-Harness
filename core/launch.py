@@ -351,7 +351,7 @@ def make_vlm_client(args: argparse.Namespace, cfg: dict[str, Any]):
     )
 
 
-SUPPORTED_HARDWARE = ("franka", "piper")
+SUPPORTED_HARDWARE = ("franka", "piper", "openarm")
 
 
 
@@ -359,9 +359,14 @@ def resolve_hardware(args: argparse.Namespace, robot_cfg: dict[str, Any]) -> str
     """Select the hardware target from the robot config's ``hardware`` key.
 
     Selection is by which ``--robot-config`` you pass (robot_franka.yaml -> franka,
-    robot_piper.yaml -> piper), so hardware-specific constants (Z-floor, gripper
-    widths, camera identity) always travel with the matching config -- there is no
-    separate flag that could contradict it.
+    robot_piper.yaml -> piper, robot_openarm.yaml -> openarm), so hardware-specific
+    constants (Z-floor, gripper widths, camera identity) always travel with the
+    matching config -- there is no separate flag that could contradict it.
+
+    ``openarm`` is the MuJoCo rig: the same plugin harness and the same atomic
+    controller, with the simulation answering the session contract instead of an
+    arm on the network. It carries no site layer, because there is no hardware to
+    describe.
     """
     hardware = str(robot_cfg.get("hardware", "franka")).strip().lower()
     if hardware not in SUPPORTED_HARDWARE:
@@ -377,15 +382,19 @@ def resolve_primitives_path(
     args: argparse.Namespace, robot_cfg: dict[str, Any], hardware: str
 ) -> str:
     """--primitives-config (explicit) > robot config's primitives_config > the
-    hardware default (configs/primitives_franka.yaml for franka, primitives_piper.yaml for
-    piper). A relative path in the config is resolved against the repo root."""
+    hardware default (configs/primitives_franka.yaml for franka, primitives_piper.yaml
+    for piper, primitives_openarm.yaml for the OpenArm simulator). A relative path in
+    the config is resolved against the repo root."""
     if args.primitives_config:
         return args.primitives_config
     from_cfg = robot_cfg.get("primitives_config")
     if from_cfg:
         p = Path(from_cfg)
         return str(p if p.is_absolute() else ROOT / p)
-    default_name = "primitives_piper.yaml" if hardware == "piper" else "primitives_franka.yaml"
+    default_name = {
+        "piper": "primitives_piper.yaml",
+        "openarm": "primitives_openarm.yaml",
+    }.get(hardware, "primitives_franka.yaml")
     return str(ROOT / "configs" / default_name)
 
 
@@ -393,7 +402,45 @@ def resolve_primitives_path(
 def make_session(cfg: dict[str, Any], args: argparse.Namespace, hardware: str) -> Any:
     if hardware == "piper":
         return PiperSession(piper_session_config(cfg, args))
+    if hardware == "openarm":
+        return make_openarm_session(cfg, args)
     return FrankaSession(session_config(cfg, args))
+
+
+def openarm_session_config(cfg: dict[str, Any], args: argparse.Namespace) -> Any:
+    """The OpenArm simulator session config from the resolved robot config.
+
+    Every key is optional and defaulted in :class:`OpenArmSessionConfig`, so a config
+    only carries the values it tunes. Camera transforms and the live scene come from
+    the same yaml the fine-tuned entry point reads, keeping one contract for both.
+    """
+    from core.openarm.openarm_session import OpenArmSessionConfig
+
+    return OpenArmSessionConfig(
+        scene=args.scene if getattr(args, "scene", None) is not None else cfg.get("scene"),
+        arm_side=str(getattr(args, "arm", None) or cfg.get("arm_side", "right")),
+        control_hz=float(cfg.get("control_hz", 60.0)),
+        sim_ticks_per_command=int(cfg.get("sim_ticks_per_command", 6)),
+        gripper_ticks=int(cfg.get("gripper_ticks", 60)),
+        settle_ticks=int(cfg.get("settle_ticks", 60)),
+        observation_resolution=int(cfg.get("observation_resolution", 256)),
+        # The zero-shot planner wants glyph-level detail; reuse the rig's hd key.
+        hd_resolution=int(cfg["hd_res"]) if cfg.get("hd_res") else None,
+        agentview_rotation_degrees=int(cfg.get("agentview_rotation_degrees", 0)),
+        wrist_rotation_degrees=int(cfg.get("wrist_rotation_degrees", 0)),
+        agentview_flip=str(cfg.get("agentview_flip", "none")),
+        wrist_flip=str(cfg.get("wrist_flip", "none")),
+        agentview_crop_aspect=cfg.get("agentview_crop_aspect"),
+        wrist_crop_aspect=cfg.get("wrist_crop_aspect"),
+        success_check=str(cfg.get("success_check", "none")),
+    )
+
+
+def make_openarm_session(cfg: dict[str, Any], args: argparse.Namespace) -> Any:
+    """Build the MuJoCo-backed OpenArm session (the sim answers the session contract)."""
+    from core.openarm.openarm_session import OpenArmSession
+
+    return OpenArmSession(openarm_session_config(cfg, args))
 
 
 
@@ -543,6 +590,17 @@ def make_controller(
             "(sets arms.<side>.z_floor_m in configs/robot_piper.yaml) -- or pass "
             "--z-floor-m <height> explicitly."
         )
+    # OpenArm: the floor is a CONFIG value measured on this model (the control point
+    # reaches -0.225 with the fingertips clearing the -0.298 tabletop), so "capture at
+    # the start height" would lock it at the home pose and forbid all descent. The sim
+    # config always names an explicit height; refuse a capture instead of silently
+    # starting a rollout the arm cannot complete.
+    if hardware == "openarm" and capture:
+        raise ValueError(
+            "OpenArm: the Z floor would be captured at the start pose, which forbids all "
+            "descent. Set `z_floor_m` in configs/robot_openarm_zero.yaml (the shipped "
+            "value is measured against this model), or pass --z-floor-m <height>."
+        )
     step_m = cfg.get("fine_step_m")
     plugins = PluginsConfig.from_config(cfg)
     grasp_min_width_m = recovery_empty_width_m(cfg) if plugins.enabled("recovery") else None
@@ -610,7 +668,42 @@ def make_controller(
         **rotation_kwargs,
     )
 
-    if hardware == "piper":
+    if hardware == "openarm":
+        # The simulation branch shares the OpenArm defaults (settle contract, Z floor,
+        # primitives) with the fine-tuned entry point through one factory, so the two
+        # paths cannot drift.
+        #
+        # ``common_kwargs`` was built from the REAL-rig defaults (the ``robot:`` block),
+        # which this config does not have: forwarding it as-is would impose the Franka
+        # settle timings (4 steps, 1.2 s of sleeping per gripper command) on a simulator
+        # that steps physics instead. Drop exactly those keys so the factory's OpenArm
+        # values -- which come from this rig's own config -- are what runs, and keep the
+        # plugin mounts and the values the harness resolved from the config/CLI.
+        openarm_kwargs = {
+            key: value
+            for key, value in common_kwargs.items()
+            if key
+            not in {
+                "settle_steps",
+                "settle_dt_s",
+                "gripper_settle_s",
+                "gripper_min_settle_s",
+                "grasp_min_width_m",
+                "grasp_open_width_m",
+                "capture_z_floor_on_sync",
+            }
+        }
+        from core.openarm.controller import make_openarm_controller
+
+        controller = make_openarm_controller(
+            cfg,
+            session.robot,
+            primitives_cfg,
+            z_floor_m=z_floor_m,
+            extra_kwargs=openarm_kwargs,
+            verbose=True,
+        )
+    elif hardware == "piper":
         # Cartesian-only: MV_* are base-frame translations (the primitives unit vectors)
         # and the Piper node's MOVE P does the IK -- no impedance controller to self-heal.
         # The gripper close threshold is Piper-scaled (stroke ~0.07 m, not the Franka

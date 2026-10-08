@@ -88,6 +88,15 @@ Base environment ready.
 
 To serve a model locally:  bash scripts/setup.sh serve
 EOF
+  if [ "${1:-}" = "--openarm" ]; then
+    cat <<'EOF'
+
+OpenArm: the default cube scene is ready. The `insert_flower` scene additionally
+needs its VLABench meshes (not redistributable with this repo):
+
+  bash scripts/model/download_vlabench_assets.sh
+EOF
+  fi
 }
 
 setup_serve() {

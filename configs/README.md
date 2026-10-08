@@ -10,6 +10,7 @@ One robot config per (rig × mode):
 | `robot_piper_ft.yaml` | Piper, fine-tuned | `scripts/run_real_mvtoken.py` / `scripts/run_real_dual_mvtoken.py` |
 | `robot_maniskill.yaml`, `robot_robolab.yaml` | simulators, fine-tuned | `scripts/run_maniskill_mvtoken.py` / `scripts/run_robolab_mvtoken.py` |
 | `robot_openarm.yaml` | OpenArm in MuJoCo, fine-tuned | `scripts/run_openarm_mvtoken.py` |
+| `robot_openarm_zero.yaml` | OpenArm in MuJoCo, zero-shot | `scripts/run_real.py` |
 | `primitives_<embodiment>.yaml` | action-unit → motion mapping (axis signs, step, yaw) | read by the interpreters |
 
 ## Layering
@@ -54,6 +55,7 @@ you switch.
 | Config | Default | Also defined |
 | --- | --- | --- |
 | `robot_franka.yaml`, `robot_piper.yaml` | `gemini` | `chatgpt` (+ `local` on Franka) |
+| `robot_openarm_zero.yaml` | `gemini` | `chatgpt`, `local` |
 | `*_ft.yaml` | `qwen3_5_2b` | the other released adapters, `finetuned_local`, hosted profiles |
 | `robot_maniskill.yaml`, `robot_robolab.yaml`, `robot_openarm.yaml` | `qwen3_5_2b` (the sim adapter) | `finetuned_local` |
 

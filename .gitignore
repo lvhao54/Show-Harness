@@ -27,6 +27,17 @@ assets/robolab_franka/.cache/
 # LIBERO's own config: machine-specific absolute paths, written by its installer.
 .libero/
 
+# VLABench meshes/textures for the OpenArm `insert_flower` scene: the asset mirror at the
+# pinned revision carries no separate asset license, so they are downloaded rather than
+# tracked (scripts/model/download_vlabench_assets.sh). The scene XMLs and the provenance
+# files under assets/vlabench/ ARE tracked.
+core/openarm/backend/assets/vlabench/*/visual/
+core/openarm/backend/assets/vlabench/*/collision/
+core/openarm/backend/assets/vlabench/*.obj
+core/openarm/backend/assets/vlabench/*/*.obj
+core/openarm/backend/assets/vlabench/*/*.png
+core/openarm/backend/assets/vlabench/*/*.mtl
+
 # ---- Lab-internal content: lives on lab machines only, never in the repo ----
 # (Working files for the lab; a fresh clone needs none of them. Site identity
 # comes from the tracked configs/site/*.example templates.)

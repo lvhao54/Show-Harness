@@ -62,6 +62,11 @@ SIM_CONFIGS = (
     "robot_openarm.yaml",
 )
 
+# Sim configs whose default backend is a hosted frontier model (zero-shot mode). They are
+# held to the REAL config's rule -- a hosted baseline is a valid public default -- because
+# the zero-shot harness needs a frontier VLM by construction.
+HOSTED_SIM_CONFIGS = ("robot_openarm_zero.yaml",)
+
 
 # A public default must be reachable by anyone who cloned the repo: the
 # rename-me example, one of the released checkpoints, or -- for a real robot
@@ -162,6 +167,17 @@ class PublicReleaseConfigTests(unittest.TestCase):
                 _is_public_default(vlm, allow_hosted=False),
                 f"{name} default backend {vlm['backend']!r} "
                 f"({vlm.get('model')!r}) is not a public offline default",
+            )
+        for name in HOSTED_SIM_CONFIGS:
+            cfg = load_yaml(pub / name)
+            vlm = resolve_vlm_config(cfg)
+            blob = repr(cfg).lower()
+            for marker in INTERNAL_MARKERS:
+                self.assertNotIn(marker.lower(), blob, f"{name} leaks {marker!r}")
+            self.assertTrue(
+                _is_public_default(vlm, allow_hosted=True),
+                f"{name} default backend {vlm['backend']!r} "
+                f"({vlm.get('model')!r}) is not a public default",
             )
 
     def test_missing_site_layer_error_is_actionable(self) -> None:

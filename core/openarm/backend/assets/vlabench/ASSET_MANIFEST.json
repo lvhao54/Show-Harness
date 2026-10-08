@@ -1,0 +1,1152 @@
+{
+  "schema_version": 1,
+  "downloaded": "2026-09-23",
+  "path_base": ".",
+  "path_note": "All path fields are relative to the directory containing this manifest. source_path fields are relative to the asset repository root.",
+  "hash_algorithm": "sha256",
+  "hash_scope": "files contains unchanged upstream assets only. Derived XML files are listed separately without hashes.",
+  "repository": "lerobot/vlabench-assets",
+  "revision": "08d7a4479a55c8fbb89ac0fd6fcf06e53d65b4a4",
+  "download_base_url": "https://huggingface.co/datasets/lerobot/vlabench-assets/resolve/08d7a4479a55c8fbb89ac0fd6fcf06e53d65b4a4/",
+  "file_count": 183,
+  "total_bytes": 25342439,
+  "files": [
+    {
+      "path": "rose_0/Red_rose.png",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/Red_rose.png",
+      "bytes": 923673,
+      "sha256": "48ca24205c0bc1b64f3b2eed98db732e9b27cc913e37ada4e8bf6b9a8cd03368"
+    },
+    {
+      "path": "rose_0/material.mtl",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/material.mtl",
+      "bytes": 161,
+      "sha256": "60f0a306f9f258ef13a4c1d4be599027223901746cdd605aa8e187d8bd1f458d"
+    },
+    {
+      "path": "rose_0/material_0.png",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/material_0.png",
+      "bytes": 2823803,
+      "sha256": "d2b53b958461af487e9a759ff69d545fcf2061fe87c81841d70fb81478cabbf7"
+    },
+    {
+      "path": "rose_0/rose_0.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0.obj",
+      "bytes": 3581816,
+      "sha256": "d0b03e892e86dc507be6ce8d2879f1dd51bf5d11740eea379bf305ffa9b2ee89"
+    },
+    {
+      "path": "rose_0/rose_0.xml",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0.xml",
+      "bytes": 20044,
+      "sha256": "94999d42f9bd6ed89b733bb7cccbc77c1e05c3552db15cb3b9073e369df9a5ac"
+    },
+    {
+      "path": "rose_0/rose_0_collision_0.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_0.obj",
+      "bytes": 5703,
+      "sha256": "7671cf047cacab7c3b00932d71c0eb6d1bb1789eba7fe8de0755762493487ce5"
+    },
+    {
+      "path": "rose_0/rose_0_collision_1.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_1.obj",
+      "bytes": 7749,
+      "sha256": "71e701137fc60e4a5421e8e5150973652580e384026064e4200ba45cf75482a7"
+    },
+    {
+      "path": "rose_0/rose_0_collision_10.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_10.obj",
+      "bytes": 3521,
+      "sha256": "6ad2cc81502daa3ad1a621869245f920db09131e5b9189cb8a759925ec37af8e"
+    },
+    {
+      "path": "rose_0/rose_0_collision_11.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_11.obj",
+      "bytes": 3615,
+      "sha256": "b96d9ad23b8b50201ebbc8dcd4235a3d6b861816db6a5090f031203d31ab7e63"
+    },
+    {
+      "path": "rose_0/rose_0_collision_12.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_12.obj",
+      "bytes": 3774,
+      "sha256": "d726a8b9a15a73424d7b3f1f301a61701fc31dff5a66c59cb0929b352722f3d4"
+    },
+    {
+      "path": "rose_0/rose_0_collision_13.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_13.obj",
+      "bytes": 9332,
+      "sha256": "1237985abc929e7bc33d045e93f90aa79313ea1fab9eb8460a06035cb786eac1"
+    },
+    {
+      "path": "rose_0/rose_0_collision_14.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_14.obj",
+      "bytes": 3023,
+      "sha256": "1a21243fbd8d96bfc03d8772c256cec0edb6bad28234ad2826cade05c39bc12e"
+    },
+    {
+      "path": "rose_0/rose_0_collision_15.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_15.obj",
+      "bytes": 5525,
+      "sha256": "cf35b7bcff47069fce083c05bc6cadada978760a2463bfc6c819b03740f7907c"
+    },
+    {
+      "path": "rose_0/rose_0_collision_16.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_16.obj",
+      "bytes": 1648,
+      "sha256": "8e8178ffb58a039df6076d6fce91dadacf110e12a3a79262aa6bed17b3349c69"
+    },
+    {
+      "path": "rose_0/rose_0_collision_17.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_17.obj",
+      "bytes": 5474,
+      "sha256": "130cc7776a5c1b50a4f591c2f49536c1017e8154e5d0680945e54ef2a864b6ee"
+    },
+    {
+      "path": "rose_0/rose_0_collision_18.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_18.obj",
+      "bytes": 8329,
+      "sha256": "be4283258f7f2b079880926821c5bdc2b76d87d41a4ab0b76db7c7c4faa32fd4"
+    },
+    {
+      "path": "rose_0/rose_0_collision_19.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_19.obj",
+      "bytes": 2855,
+      "sha256": "d4bcf23946b983369eb6bcfed454f320f5953b846c05febb30e76a35f4cb6d0a"
+    },
+    {
+      "path": "rose_0/rose_0_collision_2.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_2.obj",
+      "bytes": 9859,
+      "sha256": "34ecac81eb388c23060a848438ab7bc94e3ec6edeffa7a97647d308e336a4f54"
+    },
+    {
+      "path": "rose_0/rose_0_collision_20.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_20.obj",
+      "bytes": 6490,
+      "sha256": "681afb37ada5bdf6624835f860fd1efc4d93daa7821dffd4964cebbb2c4f8076"
+    },
+    {
+      "path": "rose_0/rose_0_collision_21.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_21.obj",
+      "bytes": 12810,
+      "sha256": "fc40365178fb0d42cd631093512066ec633ee45999c03976908b97d950737c0f"
+    },
+    {
+      "path": "rose_0/rose_0_collision_22.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_22.obj",
+      "bytes": 10298,
+      "sha256": "d64e590e3730c079359f752f0f86e7c2bede2b1d6875c19f48d070ae74ac08c9"
+    },
+    {
+      "path": "rose_0/rose_0_collision_23.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_23.obj",
+      "bytes": 7911,
+      "sha256": "928ab6256f4edb51b013239f1c66218383cb40a7acfca60e3f8341f22dfb5092"
+    },
+    {
+      "path": "rose_0/rose_0_collision_24.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_24.obj",
+      "bytes": 3018,
+      "sha256": "9b533a319e0abc9d33d080149da6df8216be12d86f84dd0f8a7ed82ccef3c2cc"
+    },
+    {
+      "path": "rose_0/rose_0_collision_25.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_25.obj",
+      "bytes": 2332,
+      "sha256": "001d9dc6d57707c232cdbfbebe771d4e1217516f110cc722b2f1855a3d6a597e"
+    },
+    {
+      "path": "rose_0/rose_0_collision_26.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_26.obj",
+      "bytes": 7805,
+      "sha256": "6c747b50adaffff3f2eddbc7aedfaf6a808c10a7e522d07357cc4a8405531ff7"
+    },
+    {
+      "path": "rose_0/rose_0_collision_27.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_27.obj",
+      "bytes": 11803,
+      "sha256": "92690ab4b5f165084617eaad3f17f8f75acff973c9daa81a477d1314ce46ca3f"
+    },
+    {
+      "path": "rose_0/rose_0_collision_28.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_28.obj",
+      "bytes": 9728,
+      "sha256": "c2fc85a8cddbf42c9f5c47320435017688d8371f965481098dcb4bf73df2fe3a"
+    },
+    {
+      "path": "rose_0/rose_0_collision_29.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_29.obj",
+      "bytes": 2360,
+      "sha256": "943f78c8f5f0d74b8142644168a05162c00255c213098ea7539b234ce84f43e3"
+    },
+    {
+      "path": "rose_0/rose_0_collision_3.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_3.obj",
+      "bytes": 8979,
+      "sha256": "44ae9b6ddfc90479d1dde67c3349e027f101b8d16b758e2b6d551bb20ff9b295"
+    },
+    {
+      "path": "rose_0/rose_0_collision_30.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_30.obj",
+      "bytes": 3588,
+      "sha256": "c6fb9bbd91ce44361e513ecbc04fc434a6c395477d36c3e81add85cbf97c221e"
+    },
+    {
+      "path": "rose_0/rose_0_collision_31.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_31.obj",
+      "bytes": 4530,
+      "sha256": "969eeb9d8585c30d1ddab41f5ae18552a4455395c71d22631da69bde0b526f31"
+    },
+    {
+      "path": "rose_0/rose_0_collision_32.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_32.obj",
+      "bytes": 9685,
+      "sha256": "2707255ed3f922913f0bfbbd87866719ad7f17168567c8ad7613aecce3266a78"
+    },
+    {
+      "path": "rose_0/rose_0_collision_33.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_33.obj",
+      "bytes": 3879,
+      "sha256": "18c2298f5c757e0dd0a40ea7e7185e039ebb7e07718e4445a58cfa095163cd2b"
+    },
+    {
+      "path": "rose_0/rose_0_collision_34.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_34.obj",
+      "bytes": 8476,
+      "sha256": "86e532bdeabcf182adb361274e0b1783ed47fcb1152e3ac688a32c69c7916d33"
+    },
+    {
+      "path": "rose_0/rose_0_collision_35.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_35.obj",
+      "bytes": 10749,
+      "sha256": "e34b09fcf7f5c4876c5086a3b9203c7f1c220b8a316d7e155e1886bb7cc99ac1"
+    },
+    {
+      "path": "rose_0/rose_0_collision_36.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_36.obj",
+      "bytes": 758,
+      "sha256": "e3ab3f8f925d75e254961837cf29c195a8857a0ace401be8eabc642943febab0"
+    },
+    {
+      "path": "rose_0/rose_0_collision_37.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_37.obj",
+      "bytes": 4907,
+      "sha256": "3c19dfce1ae367a0212d2f5df44792e83d922f5eb069275d3176f8d88e8e7d7f"
+    },
+    {
+      "path": "rose_0/rose_0_collision_38.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_38.obj",
+      "bytes": 8850,
+      "sha256": "f5c5b055bff0b834f62c9398a9d453c16c24a459886f64a7f846d1889cf6c342"
+    },
+    {
+      "path": "rose_0/rose_0_collision_39.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_39.obj",
+      "bytes": 4627,
+      "sha256": "b6dff39c56a43242062a487444f25d026c059f0ce9a1c6d9fa7d10cf53635de0"
+    },
+    {
+      "path": "rose_0/rose_0_collision_4.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_4.obj",
+      "bytes": 4254,
+      "sha256": "de32f9f9e05e0cc823737787c7cdf11e5930a32421b7c5897ccfb1f555433852"
+    },
+    {
+      "path": "rose_0/rose_0_collision_40.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_40.obj",
+      "bytes": 8060,
+      "sha256": "52652ffa55c1ff8cd2a9d5c97305ffb8a38c714266e74cd39164e5a7c600bc21"
+    },
+    {
+      "path": "rose_0/rose_0_collision_41.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_41.obj",
+      "bytes": 2197,
+      "sha256": "83fd4ca656ac861bd141fbab66fef18a336d891dcad20bc1e94fba4ce8f2bddd"
+    },
+    {
+      "path": "rose_0/rose_0_collision_42.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_42.obj",
+      "bytes": 3953,
+      "sha256": "c5104ffab4dc786b14a1edb5bb257043e368f349bba9d0d6ab2b8a6d58c4821a"
+    },
+    {
+      "path": "rose_0/rose_0_collision_43.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_43.obj",
+      "bytes": 12622,
+      "sha256": "9db06cdb1a54a7020d6a12ed85d78acd89ccacdd2bf18ce236f0c8f6d37826f8"
+    },
+    {
+      "path": "rose_0/rose_0_collision_44.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_44.obj",
+      "bytes": 5322,
+      "sha256": "a15db64189e40c473147028057a2cf5b1aec7fed8d600c2ebc473eaac43f9e8c"
+    },
+    {
+      "path": "rose_0/rose_0_collision_45.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_45.obj",
+      "bytes": 1680,
+      "sha256": "534b05e5d98f65fbc04176c96c8e32e617d697fcd148e11216cddcc1b478dd44"
+    },
+    {
+      "path": "rose_0/rose_0_collision_46.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_46.obj",
+      "bytes": 3841,
+      "sha256": "da6e840118c51fe7c093e971b8a2b30d768905135a6d5a432514afd29705260b"
+    },
+    {
+      "path": "rose_0/rose_0_collision_47.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_47.obj",
+      "bytes": 879,
+      "sha256": "38fbacf7081e3d500204032c60abebdb102002692527b2b28a500c6aa19c1668"
+    },
+    {
+      "path": "rose_0/rose_0_collision_48.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_48.obj",
+      "bytes": 7145,
+      "sha256": "d4297ba5df3a0adb1f5a7a7a217df2cd627aeda758de9b794c64df4623916f31"
+    },
+    {
+      "path": "rose_0/rose_0_collision_49.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_49.obj",
+      "bytes": 2377,
+      "sha256": "415a99f2c1779715510be187e84e0088a2bda44aa77be74a2c827251bdc4a197"
+    },
+    {
+      "path": "rose_0/rose_0_collision_5.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_5.obj",
+      "bytes": 6130,
+      "sha256": "d4f4b6a9c99c90e4f2280f9903e59b592a1ba952a4f77c4ff666b14084131eb0"
+    },
+    {
+      "path": "rose_0/rose_0_collision_50.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_50.obj",
+      "bytes": 6792,
+      "sha256": "e0b8a7824c9be5e3eefdd22ffe5cc58f991a2d7f9fa056db01dd832e491e133a"
+    },
+    {
+      "path": "rose_0/rose_0_collision_51.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_51.obj",
+      "bytes": 3777,
+      "sha256": "f7289af76bb305db75cc250aa04bf97778ad16c3988a22dad8308b17d6d4f1b0"
+    },
+    {
+      "path": "rose_0/rose_0_collision_52.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_52.obj",
+      "bytes": 7951,
+      "sha256": "48488fc82d5535e0df65c87a28ebe0073b0be412756e695a406a73d3fcd4662c"
+    },
+    {
+      "path": "rose_0/rose_0_collision_53.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_53.obj",
+      "bytes": 7215,
+      "sha256": "cce28a376dfb2f60127325a292839b041fa992472c25e6dd02699d6ba0072181"
+    },
+    {
+      "path": "rose_0/rose_0_collision_54.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_54.obj",
+      "bytes": 3295,
+      "sha256": "7275fa5b74ac7bd78a306a808bd1bfab58939f203a4160b865339678ea4c01b9"
+    },
+    {
+      "path": "rose_0/rose_0_collision_55.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_55.obj",
+      "bytes": 6296,
+      "sha256": "147a9b761e0588df4acac9ec78db4cc69b852becf4d0e9f6590cfe2d60b2596d"
+    },
+    {
+      "path": "rose_0/rose_0_collision_56.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_56.obj",
+      "bytes": 6464,
+      "sha256": "53edcc1722d2da7a6622226347cdf82681a23e3162d8b8d428c3aed7e4e86aca"
+    },
+    {
+      "path": "rose_0/rose_0_collision_57.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_57.obj",
+      "bytes": 6227,
+      "sha256": "349f18a3a465510ded1b1a8fb0b959028083ac1e4602febae9127a7173367ee4"
+    },
+    {
+      "path": "rose_0/rose_0_collision_58.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_58.obj",
+      "bytes": 2837,
+      "sha256": "a7928703b11f50998a8ca74536b35cc5c31deb047188ab77fa53f2380184fc59"
+    },
+    {
+      "path": "rose_0/rose_0_collision_59.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_59.obj",
+      "bytes": 4809,
+      "sha256": "e2fff58cc02d5914f8cd7a59c4690a62d73b8824fa4368017ff55d62ecff9c5a"
+    },
+    {
+      "path": "rose_0/rose_0_collision_6.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_6.obj",
+      "bytes": 9208,
+      "sha256": "43ecd31637f9373f8df99ecd7253f982f5042b9f2003c4cbbec20f366df2f494"
+    },
+    {
+      "path": "rose_0/rose_0_collision_60.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_60.obj",
+      "bytes": 886,
+      "sha256": "78df8aa3ee25526f687675a2b181da4d95b1cb7e9ff0a775ce19b343b987e891"
+    },
+    {
+      "path": "rose_0/rose_0_collision_61.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_61.obj",
+      "bytes": 12662,
+      "sha256": "6b1062de99824edc348409076de84b6fcde4bd270209b1a0269cd2ad0529028a"
+    },
+    {
+      "path": "rose_0/rose_0_collision_62.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_62.obj",
+      "bytes": 10856,
+      "sha256": "46ab0b2a8878270b52288b20268f942e55a4e3ecef271cda68da09496d7efcff"
+    },
+    {
+      "path": "rose_0/rose_0_collision_63.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_63.obj",
+      "bytes": 12536,
+      "sha256": "0d58c1e01f9bfe284e8064edd94d9d8a04c338fe10975c4f2519dce4016254a2"
+    },
+    {
+      "path": "rose_0/rose_0_collision_64.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_64.obj",
+      "bytes": 5506,
+      "sha256": "af9df9e0fafc20cf823cb1791598cb568c787926faed5b01885fb1d46be13b1d"
+    },
+    {
+      "path": "rose_0/rose_0_collision_65.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_65.obj",
+      "bytes": 23278,
+      "sha256": "7db716a06bd1587fe6f9a45c0fa0c1eaabbfe940a65724711d095e350e7c5a33"
+    },
+    {
+      "path": "rose_0/rose_0_collision_66.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_66.obj",
+      "bytes": 12340,
+      "sha256": "7beeb78f1008eb867c22ddb77830dcc94bb12f50151080bb689ad7b2cca6e30b"
+    },
+    {
+      "path": "rose_0/rose_0_collision_67.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_67.obj",
+      "bytes": 10093,
+      "sha256": "49b55af1f30790f48a9f24a0b7e6d0ccd30b869599314b2a374e2e61940cdf13"
+    },
+    {
+      "path": "rose_0/rose_0_collision_68.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_68.obj",
+      "bytes": 1373,
+      "sha256": "fefda2738dac9cd0c43d9e41b89b897dd1ac69ea60edcd8c2ec9672bccbd7eb2"
+    },
+    {
+      "path": "rose_0/rose_0_collision_69.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_69.obj",
+      "bytes": 4623,
+      "sha256": "a331826af355500947809bc250ddd318c416a92b1fb0f10bcbbb57c221cc8336"
+    },
+    {
+      "path": "rose_0/rose_0_collision_7.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_7.obj",
+      "bytes": 12226,
+      "sha256": "072e4f1f683493ec7661b98a87f392a881de0b3f758fdd2c29466eb47ce5bdf0"
+    },
+    {
+      "path": "rose_0/rose_0_collision_70.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_70.obj",
+      "bytes": 2935,
+      "sha256": "a5aec922d200c803e8266396e2f806a77c0691200e0e6528e18afa6e1895aa34"
+    },
+    {
+      "path": "rose_0/rose_0_collision_71.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_71.obj",
+      "bytes": 4740,
+      "sha256": "ba6b8813ccd2cb64b79bafd6ac37731b63913a320858500a480503bc297d44b6"
+    },
+    {
+      "path": "rose_0/rose_0_collision_72.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_72.obj",
+      "bytes": 6372,
+      "sha256": "a070ab3508686eea33ae60f4eb78f02593ce3cde38e18496c1c9018b2078294b"
+    },
+    {
+      "path": "rose_0/rose_0_collision_73.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_73.obj",
+      "bytes": 3358,
+      "sha256": "be26ba41373032e2c47e4b788358cd4253a9209c95c57f38f51bcb80982ff442"
+    },
+    {
+      "path": "rose_0/rose_0_collision_74.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_74.obj",
+      "bytes": 5891,
+      "sha256": "a160628ab05b442b42544d21354b24fe25abe9e81be0892c3758f08b8a62b0f9"
+    },
+    {
+      "path": "rose_0/rose_0_collision_75.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_75.obj",
+      "bytes": 6173,
+      "sha256": "56648195657f799c20bfe27f5039964eb05be4b6deb2e65c9d5c005793c1517e"
+    },
+    {
+      "path": "rose_0/rose_0_collision_76.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_76.obj",
+      "bytes": 1723,
+      "sha256": "be80f5ef7f7941b5f5d3cc913e18d985482e51bc81509327fda5789cedfd5d86"
+    },
+    {
+      "path": "rose_0/rose_0_collision_77.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_77.obj",
+      "bytes": 1134,
+      "sha256": "00b42777a7ff8be25a535a40af3edf344bb5616537e38b21ba990576c0327bc8"
+    },
+    {
+      "path": "rose_0/rose_0_collision_78.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_78.obj",
+      "bytes": 1888,
+      "sha256": "e71dc090c5834a75358d6f4019d9144926a21cf9588a67f9ad0538b69e5e8140"
+    },
+    {
+      "path": "rose_0/rose_0_collision_79.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_79.obj",
+      "bytes": 3871,
+      "sha256": "cc24b6fa4ecb471bf2df731fa7648d2dca20856ca156403fb20fd51b0fd08320"
+    },
+    {
+      "path": "rose_0/rose_0_collision_8.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_8.obj",
+      "bytes": 17398,
+      "sha256": "41a54c3e6c3b181d392eea16e1ddd48ff39cae134a40ce0e29b0a0fe7778289e"
+    },
+    {
+      "path": "rose_0/rose_0_collision_80.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_80.obj",
+      "bytes": 4997,
+      "sha256": "2818485d15cfd8eb9634ae84d1ac45d58c200b884f6324427de8227c3dbc3d01"
+    },
+    {
+      "path": "rose_0/rose_0_collision_81.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_81.obj",
+      "bytes": 5045,
+      "sha256": "7c85785e250edfefa917f6049c686b106fc9d0aa7f9ef155b4c67f3df2b75201"
+    },
+    {
+      "path": "rose_0/rose_0_collision_82.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_82.obj",
+      "bytes": 2076,
+      "sha256": "418634037b038174229f77d4aa66217cb9be180d1a8b394197658cc0a12d245f"
+    },
+    {
+      "path": "rose_0/rose_0_collision_83.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_83.obj",
+      "bytes": 1351,
+      "sha256": "ce1f8c1b4665378e86a057add10c0536e182ce165635e1a407def4fcafaa5385"
+    },
+    {
+      "path": "rose_0/rose_0_collision_84.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_84.obj",
+      "bytes": 5572,
+      "sha256": "2dc1e67abebfc84c66e3f01ae643c7eb698b10a46481313433fb38f680679435"
+    },
+    {
+      "path": "rose_0/rose_0_collision_85.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_85.obj",
+      "bytes": 3524,
+      "sha256": "a4f65e94b532f418a157934ed821ec46fdc674628c281eea157ba1ff391e4b72"
+    },
+    {
+      "path": "rose_0/rose_0_collision_9.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/rose_0_collision_9.obj",
+      "bytes": 6958,
+      "sha256": "23e267c9421d6dc46b70add84a7d2258d318335e2e724991356908a6b42c9555"
+    },
+    {
+      "path": "rose_0/stem.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/stem.obj",
+      "bytes": 3481860,
+      "sha256": "a7af6f82c1927669b04c15501e33cfa7a892c3fbc78b6019d75b9924e197ec22"
+    },
+    {
+      "path": "rose_0/stem_collision_0.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/stem_collision_0.obj",
+      "bytes": 3016,
+      "sha256": "12b2accff95c0ccc9444fbb5964521f14f804b5d8bfaa309ca830720db26bdc3"
+    },
+    {
+      "path": "rose_0/stem_collision_1.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/stem_collision_1.obj",
+      "bytes": 4028,
+      "sha256": "07de533e8a8cd69fe9fcaeaf7797804814395fa4914c0ff6b978b30f8be1d5d5"
+    },
+    {
+      "path": "rose_0/stem_collision_2.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/stem_collision_2.obj",
+      "bytes": 7635,
+      "sha256": "1460c3dbc28eb984510e86f424e365c9674f3300fd2333f0b04a3e585bf4f8e1"
+    },
+    {
+      "path": "rose_0/stem_collision_3.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/stem_collision_3.obj",
+      "bytes": 4370,
+      "sha256": "df1c2b6e6acb968d828b80551dfbb615be3cd2302fac124c4c25a5233e5d2bb7"
+    },
+    {
+      "path": "rose_0/stem_collision_4.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/stem_collision_4.obj",
+      "bytes": 3618,
+      "sha256": "638fb5306e1c8a7e4c54231fe244d17ec2e4f23d7f3af38fe307e02ab134af79"
+    },
+    {
+      "path": "rose_0/stem_collision_5.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/stem_collision_5.obj",
+      "bytes": 3311,
+      "sha256": "86a089e721f1b5b8a0304783c1ccead195a1878eca57f62eaed30696cb13d972"
+    },
+    {
+      "path": "rose_0/stem_collision_6.obj",
+      "source_path": "obj/meshes/flowers/bloom_flower/rose/rose_0/stem_collision_6.obj",
+      "bytes": 2860,
+      "sha256": "984e5271cb96945acdcf6b4341b5af240469fe41027dea0633c940aff578a837"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_0.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_0.obj",
+      "bytes": 44707,
+      "sha256": "a363428dcfb29d51c478cf1c6c703cfd6dedbfb10bbe100ded13ef680913805f"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_1.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_1.obj",
+      "bytes": 32393,
+      "sha256": "c3f78c00bee451a1efe6ccad9c00d00aea34d2bda61b346e9fbf08b692465f0b"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_10.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_10.obj",
+      "bytes": 25799,
+      "sha256": "f5ff90e6d51781f6b9a2ba6778dc8d8b77d676e081c4b297e93469f36c39b164"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_11.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_11.obj",
+      "bytes": 43185,
+      "sha256": "49cc1877ee95c23fe20135ce34c99a60de20044ff2867245a9c003e700e310d8"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_12.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_12.obj",
+      "bytes": 27158,
+      "sha256": "14272477a0970818a5ac9d87495b6dfdbc14156b0708cdfdfebdc86b8a722d31"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_13.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_13.obj",
+      "bytes": 40411,
+      "sha256": "7ab221515bf8e4e3dcb2c56927ad614eae5714277c6dc0479a58aa536d82c28a"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_14.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_14.obj",
+      "bytes": 25116,
+      "sha256": "81de5c97ef986b16d7b9d8ad443305077e807d8e28017ef2e447ed553f1b29cc"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_15.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_15.obj",
+      "bytes": 41951,
+      "sha256": "e202f4543f45ac8fef8dae80cef47f22779290320fafcb5dcc4f6ed9a3738700"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_16.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_16.obj",
+      "bytes": 42024,
+      "sha256": "4f98f09c664ed1015e0411125e59a0cab4d9e9a11e0adf4141833aff8001634f"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_17.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_17.obj",
+      "bytes": 25688,
+      "sha256": "0ad3f75058eff817611ce60d1499dc33f800d102a96d79e3ae1f040da334890d"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_18.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_18.obj",
+      "bytes": 30539,
+      "sha256": "6b78583ede1a8b0d6324bd981e5b34b8f96fbe383c4e901f205e62ce302b0937"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_19.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_19.obj",
+      "bytes": 15305,
+      "sha256": "e82406e6c45375ebc4b6f65d000a661fe8b5c192b261a164889ec60747f5a449"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_2.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_2.obj",
+      "bytes": 50961,
+      "sha256": "86965ef4a955f32b343a7336626e0d49f89f0b539f3c74819b50190bbee52f7a"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_20.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_20.obj",
+      "bytes": 31110,
+      "sha256": "465b35f497ef83cec330da8f794462c02f7cc0e112deb12d0c22eba43aa813a3"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_21.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_21.obj",
+      "bytes": 16111,
+      "sha256": "0c2b4638f289b05190f006df4964722f38deaf08752fc7ecd430eb06777dd7e8"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_22.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_22.obj",
+      "bytes": 41860,
+      "sha256": "f7d4cde34b7a5bcc37ff8be55de335ef77ff17a25a6bbb922debc447d3e09e20"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_23.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_23.obj",
+      "bytes": 8804,
+      "sha256": "5015fc7746556e0f940839bfb50dfc743cd84401b1525d43a543d27270da4488"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_24.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_24.obj",
+      "bytes": 27935,
+      "sha256": "bc604b5d95c8ff833537bd5de1ccc8cb60266297ef683712a79e1cfd30e50346"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_25.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_25.obj",
+      "bytes": 39918,
+      "sha256": "e7edb79078dc0da2ef095c758295417fb85b9cd0ee3b384fa18f81ac7e498153"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_26.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_26.obj",
+      "bytes": 25421,
+      "sha256": "950980560d6a76720614eb05e45f9a54c89bc99577421e8f53e59ca4fab1d03b"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_27.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_27.obj",
+      "bytes": 26767,
+      "sha256": "9426609b4dc9850682146c4012d6b190a336011f6e66e8a7252386c2c0be2d25"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_28.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_28.obj",
+      "bytes": 27627,
+      "sha256": "9b662d160a9d23956352c97baa554c21e87f393d6cd4a96e48064f76820a91a4"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_29.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_29.obj",
+      "bytes": 39568,
+      "sha256": "d0975f36bcdc1d7420b73fb06c2990c09eaa71c3509d33a54f3a3db976d7ae77"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_3.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_3.obj",
+      "bytes": 63222,
+      "sha256": "90b75714b4ac1caa034464b1d853599d6f6c6184c89495a7fdc5cce802908b50"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_30.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_30.obj",
+      "bytes": 27121,
+      "sha256": "a4d40036e39dec1ef9084b813f3197ad186ed0a3c00701d9eb92dfd47fd7abe6"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_31.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_31.obj",
+      "bytes": 9086,
+      "sha256": "fcd41948a86e2aff45def1c79dedfba371abe11568ef72d885f2974dbf099ac5"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_32.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_32.obj",
+      "bytes": 24942,
+      "sha256": "6c14db3097dd4453edb25dec51c1bd2f7deaa9f69485e6d4384e9bc6cb8529ef"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_33.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_33.obj",
+      "bytes": 25600,
+      "sha256": "9de50f62a93e41cade3cd6de981dc9526601662cba3afd040141ec46b531fd1e"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_34.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_34.obj",
+      "bytes": 36391,
+      "sha256": "7a8dd54d60e68d7530141fef7f933b0e0cb1befd97d9f87bfadb75ae593b8c53"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_35.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_35.obj",
+      "bytes": 15149,
+      "sha256": "141de96a258dcbda4b7726a41d50c3f534134686d8b2d58b93820e4f6e66bd7b"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_36.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_36.obj",
+      "bytes": 18286,
+      "sha256": "0099333862d591d77223f985f8b70b2bb22fadc919a02157667ce0414f26cfb8"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_37.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_37.obj",
+      "bytes": 7744,
+      "sha256": "a6a003dcfe434364704269ea68f5e1dc2ccf62e2a8dfe8806502c91612ce9a21"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_38.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_38.obj",
+      "bytes": 17645,
+      "sha256": "2bb0fd98c65a4ddb97da2e0fefed89ef1409105d27883ff12fe60839b460347f"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_39.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_39.obj",
+      "bytes": 29537,
+      "sha256": "5729dfa2df5481176d48915a2e679693d050622bd23dd21cd8a05cce5ca84ca8"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_4.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_4.obj",
+      "bytes": 51732,
+      "sha256": "0347545d419a1c9a2cd41c1bd5f172d20665abf2c720397c49cbcb730cddd768"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_40.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_40.obj",
+      "bytes": 30797,
+      "sha256": "a32e9bd897270420d46e007733421a4676d31b489920ba6c607ba8b36b8d085f"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_41.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_41.obj",
+      "bytes": 7093,
+      "sha256": "29cd7e71086a249260571971951372af2e2dbe114371f82fcc9e82c85634622f"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_42.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_42.obj",
+      "bytes": 32568,
+      "sha256": "242a6db0b133fe60b3283f59ce032839db6a36a21675231e2a269bc426f2e6df"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_43.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_43.obj",
+      "bytes": 28340,
+      "sha256": "b04e787ab841674909d875d126b30b6508b79618fda958695896ed6af98ccf11"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_44.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_44.obj",
+      "bytes": 11534,
+      "sha256": "6f74eb037d4dda8c78dc17c3909e2ab8dc99117d42f776ed6ef138ba71edaf09"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_45.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_45.obj",
+      "bytes": 6739,
+      "sha256": "5871eb32ae8882674fcd1044ecfb2b1b1b11c2f93d1cff92417703630cba0747"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_46.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_46.obj",
+      "bytes": 13661,
+      "sha256": "365533713ed721489c61558ba5bb56b2dc575ef7145c2f84ae194737075c08ad"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_47.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_47.obj",
+      "bytes": 17037,
+      "sha256": "4b65af0ba89966e314599ea97dd55203791640e0d89b9d14d4f3d40f4af839e7"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_48.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_48.obj",
+      "bytes": 17501,
+      "sha256": "83fb5dd40edbf868e71f4bfc06d0b00a7adc00777d53495dd6d6b6d98f75cf7e"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_49.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_49.obj",
+      "bytes": 18995,
+      "sha256": "71216e6fe8d49eb85df6a4c0a36536091db5e78d041874b20f32b94e10988445"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_5.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_5.obj",
+      "bytes": 62916,
+      "sha256": "5717f8900a39770c4ee315e4e689cef7dd10d9c5698687ca4161415dd5398c80"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_50.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_50.obj",
+      "bytes": 21401,
+      "sha256": "2b2389a67d15e9f36e2c5de87232436a77ed0df85ef016cf3697fa6c4fa06720"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_51.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_51.obj",
+      "bytes": 29683,
+      "sha256": "98f33043fcb5ed5fc07651f9222a32c926c84e041f4ff15a6b8069d439ab4db2"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_52.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_52.obj",
+      "bytes": 18578,
+      "sha256": "7a9ab6d6887fe34a7b84fe541e0bcd528389d21295652bd7d31ca451cc9a2daf"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_53.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_53.obj",
+      "bytes": 16975,
+      "sha256": "cf3833ac60b2e3741c2ae84ecc4225fd2cc3d35e66f95791840a771ab5c6cdf4"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_54.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_54.obj",
+      "bytes": 16588,
+      "sha256": "8eb362a5ca37a2d0fcbef58fbdcfec641535b02938c24e05c444f05433a90945"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_55.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_55.obj",
+      "bytes": 17688,
+      "sha256": "f3440ccfa1a4c68db123c9ef391fddabb498f757711e4f5a142be5f58365d9d2"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_56.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_56.obj",
+      "bytes": 7281,
+      "sha256": "b7eec1fa10975a736be5fb4431c1e50cda61f944e9156990d15802adb5997ebe"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_57.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_57.obj",
+      "bytes": 14918,
+      "sha256": "134171caedfcfd13a427723a5cc7c742844205f7259a2577871083e6086a160b"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_58.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_58.obj",
+      "bytes": 20931,
+      "sha256": "9a19fb75a66d88ab75948ad22085bbb4fccab819f96b46f5d4751a2ec78cc20b"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_59.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_59.obj",
+      "bytes": 14669,
+      "sha256": "8065da0542be4d289ada89d48ce78a75db0cb8c1442d9aba614c232cce9242e9"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_6.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_6.obj",
+      "bytes": 57897,
+      "sha256": "655ce9182f7d47007f26b585e50603f40b3a31a8ab3b6005eed0cd66791f9fe8"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_60.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_60.obj",
+      "bytes": 32788,
+      "sha256": "344ca42b64c34e6b914445de612d5b4345022e5f22e11af07fbd7828053cf0b0"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_61.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_61.obj",
+      "bytes": 10133,
+      "sha256": "f38f058b7b8530108b092cad1515456ee5362bea6f22bf0afa47ca87d9a501b1"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_62.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_62.obj",
+      "bytes": 30250,
+      "sha256": "62873202f1cab88ad569f79dd6f55069a308bc3884a0c0dbb61b2c8f6dcc7c40"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_63.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_63.obj",
+      "bytes": 8163,
+      "sha256": "bf8c952525389aca0231f03d591769dce7c753877b44d00d9f244d24f5da5423"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_64.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_64.obj",
+      "bytes": 14959,
+      "sha256": "7ecd50895822d7e3d5d7b8a8cad7e48098c5714648f176c96dd472c6ee1b85a6"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_65.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_65.obj",
+      "bytes": 22650,
+      "sha256": "878e98372032cc5d547c326990d7e9d7608653a83013cde67a8938cbb00350b2"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_66.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_66.obj",
+      "bytes": 3764,
+      "sha256": "8e436a914cbd8bfc6d7c9869466ac4a75819241175a6f10b917e39b69da7758c"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_67.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_67.obj",
+      "bytes": 27104,
+      "sha256": "b59d3cecf0ec37397a0074262b9bd8238237242b75e79e983b27bb3241e01371"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_68.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_68.obj",
+      "bytes": 21416,
+      "sha256": "06f85f99631c96313cfc3171eb7316bc54648f7e00e78f8625af1ec38c827458"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_69.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_69.obj",
+      "bytes": 18703,
+      "sha256": "f000d67a173cc8b70fc4e785f8d746e42563811ad1f98e8563fa83ff4790afc2"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_7.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_7.obj",
+      "bytes": 26009,
+      "sha256": "cbb715ccfdc332a0501ac6a6fd0477cbb49d544547ac942888e2e002a41b30c8"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_70.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_70.obj",
+      "bytes": 19062,
+      "sha256": "27b6c3c1b470e5dd088513621ddda85b68306d8f4a6ec44624e7bd88d9ace8ba"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_71.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_71.obj",
+      "bytes": 19271,
+      "sha256": "0af617cd909d9ec17a0ce185dad4bb933e4aa2eb67d82570fc14e9bd0d20ab65"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_72.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_72.obj",
+      "bytes": 18602,
+      "sha256": "712288c7168d8553e2746c7a67b6c95263043715e5f08351fc55817dfa03bda1"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_73.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_73.obj",
+      "bytes": 8510,
+      "sha256": "39a10ae0353788e3361e746bcbddb3b94172c3429746c3326d3497b7335ac920"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_74.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_74.obj",
+      "bytes": 18199,
+      "sha256": "8bde68c4638b06a73b18ca9bb9243f24271f5b7ba24fe403f073209136ea7b19"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_75.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_75.obj",
+      "bytes": 30154,
+      "sha256": "b1a98c5f7bd2ef1e6e93c94c3f81e474d99d3a7175bb8ca26178592bc2634a76"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_76.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_76.obj",
+      "bytes": 14848,
+      "sha256": "90ca2c60c84d2780a9bca8ef1e197ff6ca9a67f40306af95896af91682af2526"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_77.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_77.obj",
+      "bytes": 7330,
+      "sha256": "c6bf08c91b69b8206cb0f9d289ff4155fbcb9f4ebfc1ad48a036ee43b230a6c6"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_78.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_78.obj",
+      "bytes": 18444,
+      "sha256": "f640664d2da8875e4a88c90f49fb4d5de05cbda1c0901e3643080d5b31a6284d"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_79.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_79.obj",
+      "bytes": 7604,
+      "sha256": "b829b93d7bd907e2af02ae328d2c965fe43714274824ccd33aa0ec56999815a7"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_8.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_8.obj",
+      "bytes": 30723,
+      "sha256": "bdc1b91d6f40f2c6620640cf734610a0dd52e99ecf2ea61686969ac4059c8865"
+    },
+    {
+      "path": "vase_0/collision/vase_collision_9.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/collision/vase_collision_9.obj",
+      "bytes": 8015,
+      "sha256": "d9a65045661f8bc8728f6d5d5cb4489466b7d9f65ab1056c10206ce0b74ef8fb"
+    },
+    {
+      "path": "vase_0/vase.xml",
+      "source_path": "obj/meshes/containers/vases/vase_0/vase.xml",
+      "bytes": 17212,
+      "sha256": "20e17231ea3ff551ea5a00a471b3994cf9357e0e55fcaa852c23bf73f61362fe"
+    },
+    {
+      "path": "vase_0/visual/material.mtl",
+      "source_path": "obj/meshes/containers/vases/vase_0/visual/material.mtl",
+      "bytes": 163,
+      "sha256": "ae9edb30a441757534a80b5ebdd68efaafa53c046c48172c97085f2d8782bd18"
+    },
+    {
+      "path": "vase_0/visual/vase.obj",
+      "source_path": "obj/meshes/containers/vases/vase_0/visual/vase.obj",
+      "bytes": 10465580,
+      "sha256": "6c751fe22e4476e6fcf92c3a582ccc0d7af195552995cdd1f671c82d7cb87cd7"
+    },
+    {
+      "path": "vase_0/visual/vase.png",
+      "source_path": "obj/meshes/containers/vases/vase_0/visual/vase.png",
+      "bytes": 1513279,
+      "sha256": "1ce09e3acfd53b3b6943e3f139a73cfe1557ed8d64ce8b981fa7166bcaf1312b"
+    }
+  ],
+  "derived_files": [
+    {
+      "path": "vase_0/openarm.xml",
+      "derived_from": [
+        "vase_0/vase.xml"
+      ],
+      "changes": [
+        "Multiply every pos, size, and mesh scale value by 0.65.",
+        "Set collision geom and site rgba to 0 0 0 0; retain collision geometry and contact settings.",
+        "Reference the unchanged local meshes and textures."
+      ]
+    },
+    {
+      "path": "rose_0/openarm.xml",
+      "derived_from": [
+        "rose_0/rose_0.xml"
+      ],
+      "changes": [
+        "Multiply every pos, size, and mesh scale value by 0.8.",
+        "Set collision geom, weight geom, and site rgba to 0 0 0 0; retain collision geometry and contact settings.",
+        "Reference the unchanged local meshes and textures."
+      ]
+    },
+    {
+      "path": "../openarm2_insert_flower.xml",
+      "derived_from": [
+        "vase_0/openarm.xml",
+        "rose_0/openarm.xml"
+      ],
+      "changes": [
+        "Assemble the assets with the OpenArm Pedestal robot, project tabletop, and cameras.",
+        "Keep the vase fixed to the world.",
+        "Create flower_1, flower_2, and flower_3, each with one root freejoint; attach rose_0 and stem below that root so flower head and stem move as one rigid object.",
+        "Add hidden vase mouth, flower grasp, and flower tip sites for the OpenArm scene."
+      ]
+    }
+  ],
+  "provenance": "SOURCE.json",
+  "license_note": "VLABench code: MIT, preserved in VLABench-CODE-LICENSE.txt. A separate asset-specific license was not found; see SOURCE.json."
+}

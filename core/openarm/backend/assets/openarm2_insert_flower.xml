@@ -1,0 +1,97 @@
+<!--
+Copyright 2026 Enactic, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!-- VLABench assets and layout adaptation: see vlabench/README.md. -->
+<mujoco model="openarm2_pedestal_insert_flower">
+  <compiler angle="radian" />
+  <statistic center="0.25 0 0.4" extent="1.5" meansize="0.05" />
+  <option timestep="0.001" cone="elliptic" impratio="10" />
+  <default>
+    <default class="task_object">
+      <geom type="box" condim="3" friction="1 0.005 0.001" solref="0.005 1" />
+    </default>
+  </default>
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0" />
+    <rgba haze="0.15 0.25 0.35 1" />
+    <global azimuth="150" elevation="-25" />
+    <quality shadowsize="4096" />
+  </visual>
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0.05 0.07 0.1" width="512" height="3072" />
+    <texture type="2d" name="groundplane" builtin="checker" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" width="300" height="300" />
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" />
+    <material name="tabletop" rgba="0.85 0.83 0.77 1" />
+    <material name="table_frame" rgba="0.22 0.24 0.27 1" />
+    <model name="arm_pedestal" file="pedestal/openarm_pedestal.xml" />
+    <model name="flower_vase_asset" file="vlabench/vase_0/openarm.xml" />
+    <model name="rose_asset" file="vlabench/rose_0/openarm.xml" />
+  </asset>
+  <worldbody>
+    <light pos="0.3 0 2" dir="0 0 -1" directional="true" />
+    <geom name="floor" type="plane" size="0 0 0.05" material="groundplane" />
+    <attach model="arm_pedestal" prefix="" />
+    <body name="table" pos="0.47 0 0.36">
+      <geom name="table_top" class="task_object" size="0.41 0.55 0.04" material="tabletop" />
+      <geom name="table_leg_back_right" class="task_object" pos="-0.35 -0.49 -0.20" size="0.025 0.025 0.16" material="table_frame" />
+      <geom name="table_leg_back_left" class="task_object" pos="-0.35 0.49 -0.20" size="0.025 0.025 0.16" material="table_frame" />
+      <geom name="table_leg_front_right" class="task_object" pos="0.35 -0.49 -0.20" size="0.025 0.025 0.16" material="table_frame" />
+      <geom name="table_leg_front_left" class="task_object" pos="0.35 0.49 -0.20" size="0.025 0.025 0.16" material="table_frame" />
+    </body>
+    <camera name="camera_head" pos="0.075 0 0.8" xyaxes="0 -1 0 0.866 0 0.5" fovy="66" resolution="1280 720" />
+    <body name="flower_vase" pos="0.34 0 0.4032">
+      <attach model="flower_vase_asset" prefix="vase_" />
+      <site name="vase_mouth" pos="0 0 0.192" size="0.003" rgba="0 0 0 0" />
+    </body>
+    <body name="flower_1" pos="0.3 -0.4 0.45" quat="0.7071067811865476 0 0 -0.7071067811865476">
+      <freejoint name="flower_1_free" />
+      <attach model="rose_asset" prefix="flower_1_" />
+      <site name="flower_1_grasp" pos="0 0.032 0" size=".003" rgba="0 0 0 0" />
+      <site name="flower_1_tip" pos="0 -0.075 0" size=".003" rgba="0 0 0 0" />
+    </body>
+    <body name="flower_2" pos="0.3 -0.27 0.45" quat="0.7071067811865476 0 0 -0.7071067811865476">
+      <freejoint name="flower_2_free" />
+      <attach model="rose_asset" prefix="flower_2_" />
+      <site name="flower_2_grasp" pos="0 0.032 0" size=".003" rgba="0 0 0 0" />
+      <site name="flower_2_tip" pos="0 -0.075 0" size=".003" rgba="0 0 0 0" />
+    </body>
+    <body name="flower_3" pos="0.3 0.35 0.45" quat="0.7071067811865476 0 0 -0.7071067811865476">
+      <freejoint name="flower_3_free" />
+      <attach model="rose_asset" prefix="flower_3_" />
+      <site name="flower_3_grasp" pos="0 0.032 0" size=".003" rgba="0 0 0 0" />
+      <site name="flower_3_tip" pos="0 -0.075 0" size=".003" rgba="0 0 0 0" />
+    </body>
+  </worldbody>
+  <!-- The imported fingertip meshes overlap at the closed home pose. They are
+       visualized separately and synchronized by the equality mimic joints; the
+       internal collision pair must be excluded or it self-locks the gripper
+       before any flower can be grasped. -->
+  <contact>
+    <exclude body1="openarm_left_ee_inner_finger" body2="openarm_left_ee_outer_finger" />
+    <exclude body1="openarm_right_ee_inner_finger" body2="openarm_right_ee_outer_finger" />
+  </contact>
+  <keyframe>
+    <!-- Official Pedestal home, followed by the three free flowers. -->
+    <key name="home"
+      qpos="0 0 0 1.570796 0 0 0 0 0
+            0 0 0 1.570796 0 0 0 0 0
+            0.3 -0.4 0.45 0.7071067811865476 0 0 -0.7071067811865476
+            0.3 -0.27 0.45 0.7071067811865476 0 0 -0.7071067811865476
+            0.3 0.35 0.45 0.7071067811865476 0 0 -0.7071067811865476"
+      ctrl="0 0 0 1.570796 0 0 0 0
+            0 0 0 1.570796 0 0 0 0" />
+  </keyframe>
+</mujoco>

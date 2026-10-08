@@ -11,9 +11,11 @@ duck type the real-arm controller already speaks. The whole real stack therefore
 here unchanged: setpoint integration, the Z safety floor, empty-grasp detection, and the
 ``auto_release`` plugin.
 
-The OpenArm model, IK and cameras are NOT vendored: they are imported from an
-``embodied_ai-llm`` checkout (see :mod:`core.openarm.sim` for the search order, or set
-``openarm_root`` in the config / ``OPENARM_ROOT`` in the environment).
+The simulator is self-contained: the MuJoCo physics/IK/camera glue is vendored under
+``core/openarm/backend/`` and the robot model comes from the ``openarm-mujoco`` wheel, so
+no external checkout is needed. The ``insert_flower`` scene additionally needs its
+VLABench meshes, which are not redistributable with this repo -- fetch them once with
+``bash scripts/model/download_vlabench_assets.sh``.
 
 CROSS-DOMAIN experiment: the released ``_sim`` LoRA was trained on RoboLab + ManiSkill
 Franka/Piper rollouts, so behaviour on a bimanual OpenArm with a different gripper and
@@ -93,10 +95,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--arm", default=None, choices=(None, "left", "right"))
     parser.add_argument(
-        "--openarm-root", default=os.environ.get("OPENARM_ROOT"),
-        help="Path to the embodied_ai-llm checkout holding the OpenArm model.",
-    )
-    parser.add_argument(
         "--success-check", default=None,
         help="none | cubes_on_table | flowers_in_vase (default: the config's value).",
     )
@@ -139,7 +137,6 @@ def parse_args() -> argparse.Namespace:
 
 def _session_config(cfg: dict, args: argparse.Namespace) -> OpenArmSessionConfig:
     return OpenArmSessionConfig(
-        openarm_root=args.openarm_root or cfg.get("openarm_root"),
         scene=args.scene if args.scene is not None else cfg.get("scene"),
         arm_side=str(args.arm or cfg.get("arm_side", "right")),
         control_hz=float(cfg.get("control_hz", 60.0)),
@@ -163,21 +160,19 @@ def _session_config(cfg: dict, args: argparse.Namespace) -> OpenArmSessionConfig
 def _make_controller(cfg: dict, args: argparse.Namespace, robot) -> RealAtomicController:
     """The real-arm controller, unchanged -- only the robot duck type is simulated.
 
-    Token semantics come from the robot config's own ``move_vectors`` when present (the same
-    convention ``configs/robot_maniskill.yaml`` and ``robot_robolab.yaml`` use), falling back
-    to the primitives file for anything the config omits. The robot config is authoritative
-    because the axis signs follow the CAMERA: the OpenArm head view's image-left is world +Y,
-    which differs from the real Franka rig the primitives file was written for. Verify with
-    ``--probe-axes`` after any change to the scene, camera or mount.
+    Token semantics come from the shared ``configs/primitives_openarm.yaml``, with the
+    robot config's own ``move_vectors`` layered on top when present (the same convention
+    ``configs/robot_maniskill.yaml`` and ``robot_robolab.yaml`` use). The robot config is
+    authoritative because the axis signs follow the CAMERA: the OpenArm head view's
+    image-left is world +Y, which differs from the real Franka rig the Franka primitives
+    file was written for. Verify with ``--probe-axes`` after any change to the scene,
+    camera or mount.
     """
     from core.action_units import MOVE_ATOMS
     from core.config import load_yaml as _load
+    from core.openarm.controller import DEFAULT_PRIMITIVES, make_openarm_controller
 
-    prim_path = cfg.get("primitives_config") or str(
-        ROOT / "configs" / "primitives_franka.yaml"
-    )
-    prims = _load(prim_path)
-    atomic_primitives = dict(prims["atomic_primitives"])
+    prims = _load(cfg.get("primitives_config") or str(DEFAULT_PRIMITIVES))
     move_vectors = cfg.get("move_vectors") or {}
     missing = [name for name in MOVE_ATOMS if name not in move_vectors]
     if missing and missing != list(MOVE_ATOMS):
@@ -185,35 +180,20 @@ def _make_controller(cfg: dict, args: argparse.Namespace, robot) -> RealAtomicCo
             f"move_vectors must define all of {list(MOVE_ATOMS)}; missing {missing}"
         )
     if not missing:
-        atomic_primitives.update(
-            {name: list(move_vectors[name]) for name in MOVE_ATOMS}
-        )
-    z_floor = None if args.no_z_floor else cfg.get("z_floor_m")
-    if args.z_floor_m is not None:
-        z_floor = args.z_floor_m
-    if not bool(cfg.get("enable_z_floor", True)) and args.z_floor_m is None:
+        prims = dict(prims)
+        prims["atomic_primitives"] = {
+            **prims.get("atomic_primitives", {}),
+            **{name: list(move_vectors[name]) for name in MOVE_ATOMS},
+        }
+    if args.no_z_floor:
         z_floor = None
-    return RealAtomicController(
-        robot,
-        atomic_primitives,
-        float(cfg.get("step_m", prims.get("step_m", 0.02))),
-        float(prims.get("yaw_step_rad", 0.15)),
-        max_position_delta_m=float(
-            prims.get("osc_translation_output_max_m", 0.05)
-        ),
-        max_rotation_delta_rad=float(
-            prims.get("osc_rotation_output_max_rad", 0.5)
-        ),
-        settle_steps=int(cfg.get("settle_steps", 6)),
-        settle_dt_s=float(cfg.get("settle_dt_s", 0.0)),
-        gripper_close_threshold_m=float(cfg.get("gripper_close_threshold_m", 0.02)),
-        grasp_min_width_m=float(cfg["empty_width_m"]) if cfg.get("empty_width_m") else None,
-        grasp_open_width_m=float(cfg.get("open_width_m", 0.06)),
-        gripper_settle_s=float(cfg.get("gripper_settle_s", 0.0)),
-        gripper_min_settle_s=float(cfg.get("gripper_min_settle_s", 0.0)),
-        z_floor_m=z_floor,
-        verbose=True,
-    )
+    elif args.z_floor_m is not None:
+        z_floor = args.z_floor_m
+    elif not bool(cfg.get("enable_z_floor", True)):
+        z_floor = None
+    else:
+        z_floor = cfg.get("z_floor_m")
+    return make_openarm_controller(cfg, robot, prims, z_floor_m=z_floor, verbose=True)
 
 
 def _probe_axes(session: OpenArmSession, controller: RealAtomicController) -> dict:

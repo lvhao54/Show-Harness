@@ -2,8 +2,9 @@
 overlays:
   - {path: experiments/current_sims.yaml, optional: true}
 
-# MVTOKEN atomic-token policy on the OpenArm bimanual rig (MuJoCo via embodied_ai-llm).
+# MVTOKEN atomic-token policy on the OpenArm bimanual rig (MuJoCo).
 # Sibling of configs/robot_maniskill.yaml and configs/robot_robolab.yaml.
+# Zero-shot counterpart on the same world: configs/robot_openarm_zero.yaml.
 #
 # Cross-domain zero-shot: the released LoRA was trained on REAL Franka/Piper rollouts, so
 # behaviour here is exploratory. Two knobs decide whether a rollout is readable at all --
@@ -11,14 +12,10 @@ overlays:
 #   * `--dump-views` -- the camera framing the policy sees;
 #   * `--probe-axes` -- the measured per-token TCP displacement.
 
-# Where the OpenArm model, IK and cameras come from. Left unset, core.openarm.sim probes
-# ../embodied_ai-llm, ~/embodied_ai-llm and ~/ws/luke/embodied_ai-llm in order; set this
-# (or export OPENARM_ROOT) when the checkout lives elsewhere.
-# openarm_root: /home/luke/ws/luke/embodied_ai-llm
-
 # Upstream scene. null -> the default three-cube tabletop; insert_flower adds the VLABench
 # vase + three roses. The scene decides which objects exist, so it also decides which
-# success_check is meaningful.
+# success_check is meaningful. insert_flower additionally needs its VLABench meshes, which
+# are not bundled: bash scripts/model/download_vlabench_assets.sh
 scene: null
 # Success predicate read from simulator ground truth (never shown to the policy):
 #   none             -- no environment check; the policy's own DONE is the only terminal

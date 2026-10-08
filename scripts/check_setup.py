@@ -89,6 +89,13 @@ def check_config(r: Report, cfg_path: str):
     except Exception as exc:  # noqa: BLE001
         r.fail("robot config", f"{cfg_path}: {exc}")
         return None
+    if str(cfg.get("hardware", "")).lower() == "openarm":
+        # MuJoCo rig: no site identity or hardware to probe. The checks that matter are
+        # the simulator wheels and the scene's assets, which the imports below prove.
+        r.ok("robot config", f"{cfg_path} (OpenArm simulator)")
+        _check_openarm(r, cfg)
+        cfg["_sim_profile"] = True
+        return cfg
     if "hardware" not in cfg and "robot" not in cfg and "arms" not in cfg:
         r.ok("robot config", f"{cfg_path} (simulator profile — rig checks skipped)")
         cfg["_sim_profile"] = True
@@ -109,6 +116,43 @@ def check_config(r: Report, cfg_path: str):
     else:
         r.fail("primitives", f"{prim} not found")
     return cfg
+
+
+def _check_openarm(r, cfg):
+    """The OpenArm simulator: wheels, scene assets, and the Z-floor/action-unit pair."""
+    from core.openarm.sim import (
+        import_openarm_backend,
+        is_vlabench_assets_present,
+        OPENARM_SCENES,
+    )
+
+    try:
+        import_openarm_backend()
+        r.ok("openarm simulator", "mujoco + openarm_control + openarm_mujoco importable")
+    except Exception as exc:  # noqa: BLE001
+        r.fail("openarm simulator", str(exc)[:200],
+               "bash scripts/setup.sh base --openarm")
+        return
+    scene = cfg.get("scene")
+    if scene not in OPENARM_SCENES:
+        r.fail("scene", f"unknown scene {scene!r}",
+               f"available: {[s for s in OPENARM_SCENES if s]}")
+    elif scene is None:
+        r.ok("scene", "default three-cube tabletop (bundled)")
+    else:
+        if is_vlabench_assets_present():
+            r.ok("scene", f"{scene} (meshes present)")
+        else:
+            r.fail("scene", f"{scene} meshes are not downloaded",
+                   "bash scripts/model/download_vlabench_assets.sh")
+    floor = cfg.get("z_floor_m")
+    if not bool(cfg.get("enable_z_floor", True)):
+        r.warn("z floor", "disabled — MV_DOWN may drive the gripper into the table")
+    elif floor is None:
+        r.fail("z floor", "enabled but no z_floor_m",
+               "configs/robot_openarm_zero.yaml ships a measured value")
+    else:
+        r.ok("z floor", f"{float(floor):.3f} m (arm_origin frame)")
 
 
 def _check_franka_identity(r: Report, cfg: dict) -> None:

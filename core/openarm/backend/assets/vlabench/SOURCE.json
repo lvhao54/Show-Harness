@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "retrieved_on": "2026-09-23",
+  "task_reference": {
+    "project": "OpenMOSS/VLABench",
+    "revision": "cf588fe60c0c7282174fe979f5913170cfe69017",
+    "url": "https://github.com/OpenMOSS/VLABench/tree/cf588fe60c0c7282174fe979f5913170cfe69017",
+    "task_name": "insert_flower",
+    "task_implementation_url": "https://github.com/OpenMOSS/VLABench/blob/cf588fe60c0c7282174fe979f5913170cfe69017/VLABench/tasks/hierarchical_tasks/primitive/insert_flower_series.py",
+    "task_configuration_url": "https://github.com/OpenMOSS/VLABench/blob/cf588fe60c0c7282174fe979f5913170cfe69017/VLABench/configs/task_config.json",
+    "asset_mapping_url": "https://github.com/OpenMOSS/VLABench/blob/cf588fe60c0c7282174fe979f5913170cfe69017/VLABench/configs/constant.py",
+    "scope": "Task concept and asset selection reference. This OpenArm scene is an adaptation, not a complete VLABench benchmark port; it does not include the VLABench room, Franka robot, or expert policy."
+  },
+  "asset_source": {
+    "repository": "lerobot/vlabench-assets",
+    "revision": "08d7a4479a55c8fbb89ac0fd6fcf06e53d65b4a4",
+    "url": "https://huggingface.co/datasets/lerobot/vlabench-assets/tree/08d7a4479a55c8fbb89ac0fd6fcf06e53d65b4a4",
+    "download_base_url": "https://huggingface.co/datasets/lerobot/vlabench-assets/resolve/08d7a4479a55c8fbb89ac0fd6fcf06e53d65b4a4/",
+    "directories": [
+      {
+        "local_directory": "vase_0",
+        "source_directory": "obj/meshes/containers/vases/vase_0",
+        "source_url": "https://huggingface.co/datasets/lerobot/vlabench-assets/tree/08d7a4479a55c8fbb89ac0fd6fcf06e53d65b4a4/obj/meshes/containers/vases/vase_0"
+      },
+      {
+        "local_directory": "rose_0",
+        "source_directory": "obj/meshes/flowers/bloom_flower/rose/rose_0",
+        "source_url": "https://huggingface.co/datasets/lerobot/vlabench-assets/tree/08d7a4479a55c8fbb89ac0fd6fcf06e53d65b4a4/obj/meshes/flowers/bloom_flower/rose/rose_0"
+      }
+    ],
+    "revision_note": "The asset mirror revision and VLABench code revision identify separate sources; no exact version correspondence is asserted."
+  },
+  "local_adaptation": {
+    "scene": "../openarm2_insert_flower.xml",
+    "original_files": "The original MJCF, OBJ, MTL, and PNG files are preserved byte-for-byte; see ASSET_MANIFEST.json.",
+    "derived_files": [
+      {
+        "path": "vase_0/openarm.xml",
+        "derived_from": [
+          "vase_0/vase.xml"
+        ],
+        "changes": [
+          "Multiply every pos, size, and mesh scale value by 0.65.",
+          "Set collision geom and site rgba to 0 0 0 0; retain collision geometry and contact settings.",
+          "Reference the unchanged local meshes and textures."
+        ]
+      },
+      {
+        "path": "rose_0/openarm.xml",
+        "derived_from": [
+          "rose_0/rose_0.xml"
+        ],
+        "changes": [
+          "Multiply every pos, size, and mesh scale value by 0.8.",
+          "Set collision geom, weight geom, and site rgba to 0 0 0 0; retain collision geometry and contact settings.",
+          "Reference the unchanged local meshes and textures."
+        ]
+      },
+      {
+        "path": "../openarm2_insert_flower.xml",
+        "derived_from": [
+          "vase_0/openarm.xml",
+          "rose_0/openarm.xml"
+        ],
+        "changes": [
+          "Assemble the assets with the OpenArm Pedestal robot, project tabletop, and cameras.",
+          "Keep the vase fixed to the world.",
+          "Create flower_1, flower_2, and flower_3, each with one root freejoint; attach rose_0 and stem below that root so flower head and stem move as one rigid object.",
+          "Add hidden vase mouth, flower grasp, and flower tip sites for the OpenArm scene."
+        ]
+      }
+    ],
+    "dependencies": "Uses the existing MuJoCo runtime; this integration adds no dm_control dependency."
+  },
+  "licenses": {
+    "vlabench_code": {
+      "identifier": "MIT",
+      "scope": "VLABench code; this is not an asset-specific license statement.",
+      "source_url": "https://github.com/OpenMOSS/VLABench/blob/cf588fe60c0c7282174fe979f5913170cfe69017/LICENSE.txt",
+      "local_copy": "VLABench-CODE-LICENSE.txt"
+    },
+    "assets": {
+      "identifier": null,
+      "status": "No separate asset LICENSE, README, or license metadata was found in the asset mirror at the recorded revision. The VLABench code license alone does not establish mesh or texture licensing."
+    }
+  },
+  "manifest": "ASSET_MANIFEST.json"
+}

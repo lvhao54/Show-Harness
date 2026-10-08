@@ -1,14 +1,16 @@
-"""OpenArm simulation integration: config, path resolution, and the frame conversions.
+"""OpenArm simulation integration: config, vendored scenes, and the frame conversions.
 
 The MuJoCo world itself needs ``mujoco`` + ``openarm_control`` + ``openarm_mujoco`` (and a
-rendering backend), so the tests that build it are skipped when the checkout or its
-dependencies are absent -- the config and pure-geometry checks always run, because those
-are the parts that break silently on a machine that has the sim.
+rendering backend), so the tests that build it are skipped when those wheels are absent --
+the config, scene-resolution and pure-geometry checks always run, because those are the
+parts that break silently on a machine that has the sim.
 """
 from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
+from unittest import mock
 
 # MuJoCo reads MUJOCO_GL at IMPORT time and defaults to the interactive `glfw` backend,
 # which cannot create a context on a headless box (the failure is a blank render plus a
@@ -21,12 +23,12 @@ import numpy as np
 
 from core.config import load_yaml
 from core.openarm.sim import (
-    DEFAULT_OPENARM_ROOT,
     OPENARM_SCENES,
-    OpenArmCheckoutError,
-    _default_openarm_roots,
-    _has_openarm_sim,
-    resolve_openarm_root,
+    OpenArmDependencyError,
+    import_openarm_backend,
+    is_vlabench_assets_present,
+    scene_file,
+    vlabench_assets_dir,
 )
 from core.openarm.openarm_interface import (
     _MAX_FREE_GAP_M,
@@ -39,8 +41,6 @@ CONFIG = "configs/robot_openarm.yaml"
 
 def _sim_available() -> bool:
     try:
-        from core.openarm.sim import import_openarm_backend
-
         import_openarm_backend()
     except Exception:  # noqa: BLE001 - any failure means "not runnable here"
         return False
@@ -110,36 +110,201 @@ class OpenArmConfigTests(unittest.TestCase):
         self.assertEqual(str(cfg["wrist_flip"]).lower(), expected[1])
 
 
-class OpenArmPathTests(unittest.TestCase):
-    def test_default_roots_are_deduplicated_and_ordered(self) -> None:
-        roots = _default_openarm_roots()
-        self.assertGreaterEqual(len(roots), 1)
-        self.assertEqual(len(roots), len(set(roots)), "candidate roots must be unique")
-        # The sibling checkout is the first guess; a caller override always wins.
-        self.assertEqual(roots[0], DEFAULT_OPENARM_ROOT)
+class OpenArmSceneTests(unittest.TestCase):
+    """The simulator is self-contained: no embodied_ai-llm checkout is consulted."""
 
-    def test_caller_override_wins_and_is_expanded(self) -> None:
-        resolved = resolve_openarm_root("~/some-openarm")
-        self.assertTrue(str(resolved).endswith("some-openarm"))
-        self.assertNotIn("~", str(resolved))
+    def test_scene_files_are_bundled(self) -> None:
+        for scene in OPENARM_SCENES:
+            path = scene_file(scene)
+            self.assertTrue(path.is_file(), f"scene {scene!r} missing at {path}")
+            self.assertIn("<mujoco", path.read_text(encoding="utf-8"))
 
-    def test_missing_checkout_raises_with_guidance(self) -> None:
-        from core.openarm.sim import import_openarm_backend
+    def test_unknown_scene_raises_with_the_available_list(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            scene_file("no_such_scene")
+        self.assertIn("insert_flower", str(ctx.exception))
 
-        with self.assertRaises(OpenArmCheckoutError) as ctx:
-            import_openarm_backend("/nonexistent/embodied-ai-llm")
+    def test_default_scene_needs_no_external_checkout(self) -> None:
+        """The cube tabletop ships with the repo; building it must not need a checkout."""
+        if not _sim_available():
+            self.skipTest("OpenArm wheels not installed")
+        from core.openarm.sim import make_openarm_backend
+
+        backend = make_openarm_backend(scene=None)
+        self.addCleanup(backend.close)
+        self.assertEqual(backend.frame, "arm_origin")
+
+    def test_vlabench_gate_points_at_the_fetch_script(self) -> None:
+        """`insert_flower` must fail with the fetch command, not a mesh-not-found trace."""
+        if is_vlabench_assets_present():
+            self.skipTest("VLABench meshes already downloaded")
+        if not _sim_available():
+            self.skipTest("OpenArm wheels not installed")
+        from core.openarm.sim import make_openarm_backend
+
+        with self.assertRaises(FileNotFoundError) as ctx:
+            make_openarm_backend(scene="insert_flower")
         message = str(ctx.exception)
-        self.assertIn("embodied_ai-llm", message)
-        self.assertIn("OPENARM_ROOT", message)
+        self.assertIn("download_vlabench_assets.sh", message)
+        self.assertIn(str(vlabench_assets_dir()), message)
 
-    def test_checkout_probe_recognises_the_real_layout(self) -> None:
-        root = resolve_openarm_root()
-        if not _has_openarm_sim(root):
-            self.skipTest(f"no embodied_ai-llm checkout at {root}")
-        self.assertTrue(_has_openarm_sim(root))
+    def test_missing_dependency_error_names_the_setup_command(self) -> None:
+        """The import error an install-less clone hits must name the fix."""
+        import builtins
+
+        real_import = builtins.__import__
+
+        def _block_mujoco(name, *args, **kwargs):
+            if name == "mujoco":
+                raise ModuleNotFoundError("No module named 'mujoco'", name="mujoco")
+            return real_import(name, *args, **kwargs)
+
+        import sys
+
+        cached = sys.modules.pop("core.openarm.backend.simulation", None)
+        self.addCleanup(
+            lambda: sys.modules.__setitem__("core.openarm.backend.simulation", cached)
+            if cached is not None
+            else None
+        )
+        with mock.patch.object(builtins, "__import__", _block_mujoco):
+            with self.assertRaises(OpenArmDependencyError) as ctx:
+                import_openarm_backend()
+        message = str(ctx.exception)
+        self.assertIn("mujoco", message)
+        self.assertIn("--openarm", message)
+
+
+class OpenArmZeroShotWiringTests(unittest.TestCase):
+    """The zero-shot harness (planner + plugin stack) can drive the OpenArm sim.
+
+    These are the seams the launcher uses; the rollout itself needs a VLM, so the tests
+    stop at the wiring: hardware selection, primitives resolution, session construction and
+    the controller factory.
+    """
+
+    ZERO_CONFIG = "configs/robot_openarm_zero.yaml"
+
+    def test_launcher_recognises_openarm_hardware(self) -> None:
+        from core.launch import resolve_hardware
+        from types import SimpleNamespace
+
+        cfg = load_yaml(self.ZERO_CONFIG)
+        args = SimpleNamespace(robot_config=self.ZERO_CONFIG)
+        self.assertEqual(resolve_hardware(args, cfg), "openarm")
+
+    def test_primitives_default_is_the_openarm_file(self) -> None:
+        from types import SimpleNamespace
+
+        from core.launch import resolve_primitives_path
+
+        cfg = load_yaml(self.ZERO_CONFIG)
+        cfg.pop("primitives_config", None)
+        path = resolve_primitives_path(
+            SimpleNamespace(primitives_config=None), cfg, "openarm"
+        )
+        self.assertTrue(path.endswith("primitives_openarm.yaml"), path)
+        self.assertTrue(Path(path).is_file(), path)
+
+    def test_controller_and_finetuned_move_vectors_agree(self) -> None:
+        """One action-unit mapping: the primitives file and the fine-tuned config.
+
+        The fine-tuned entry point layers ``move_vectors`` from robot_openarm.yaml over the
+        primitives file, so the two representations must not drift.
+        """
+        primitives = load_yaml("configs/primitives_openarm.yaml")["atomic_primitives"]
+        fine = load_yaml(CONFIG)["move_vectors"]
+        for token, vec in fine.items():
+            self.assertIn(token, primitives, token)
+            self.assertTrue(
+                np.allclose(primitives[token], vec),
+                f"{token}: primitives {primitives[token]} != move_vectors {vec}",
+            )
+
+    def test_zero_and_fine_configs_share_the_world_and_cameras(self) -> None:
+        """Both modes must see the same world: a drift here silently changes the task."""
+        zero = load_yaml(self.ZERO_CONFIG)
+        fine = load_yaml(CONFIG)
+        for key in (
+            "scene",
+            "arm_side",
+            "control_hz",
+            "sim_ticks_per_command",
+            "observation_resolution",
+            "agentview_rotation_degrees",
+            "agentview_flip",
+            "agentview_crop_aspect",
+            "wrist_rotation_degrees",
+            "wrist_flip",
+            "wrist_crop_aspect",
+            "step_m",
+            "z_floor_m",
+            "empty_width_m",
+            "open_width_m",
+            "gripper_close_threshold_m",
+        ):
+            self.assertEqual(zero.get(key), fine.get(key), f"{key} drifted between the modes")
+
+    def test_session_defaults_to_the_config_arm(self) -> None:
+        """The Piper default arm must not leak into the OpenArm rig (it is camera-specific)."""
+        from types import SimpleNamespace
+
+        from core.launch import openarm_session_config
+
+        cfg = load_yaml(self.ZERO_CONFIG)
+        config = openarm_session_config(cfg, SimpleNamespace(scene=None, arm=None))
+        self.assertEqual(config.arm_side, cfg["arm_side"])
+
+    def test_controller_factory_disables_the_floor_on_request(self) -> None:
+        if not _sim_available():
+            self.skipTest("OpenArm wheels not installed")
+        from core.openarm.controller import make_openarm_controller
+        from core.openarm.openarm_interface import OpenArmSimRobot
+        from core.openarm.sim import make_openarm_backend
+
+        cfg = load_yaml(self.ZERO_CONFIG)
+        backend = make_openarm_backend(scene=None)
+        robot = OpenArmSimRobot(backend, verbose=False)
+        self.addCleanup(robot.close)
+        controller = make_openarm_controller(cfg, robot, z_floor_m=None, verbose=False)
+        self.assertIsNone(controller.z_floor_m)
+        controller = make_openarm_controller(cfg, robot, verbose=False)
+        self.assertAlmostEqual(controller.z_floor_m, float(cfg["z_floor_m"]))
+
+    def test_zero_shot_controller_uses_the_sim_settle_contract(self) -> None:
+        """The real-rig settle defaults (the ``robot:`` block) must not leak in.
+
+        The zero-shot launcher builds its kwargs from the hardware defaults; the OpenArm
+        branch has to drop them, or a rollout would sleep like a Franka between gripper
+        commands and step the wrong number of physics ticks per token.
+        """
+        if not _sim_available():
+            self.skipTest("OpenArm wheels not installed")
+        import argparse
+
+        from core.config import load_yaml as _load
+        from core.launch import make_controller, make_session, resolve_primitives_path
+
+        cfg = _load(self.ZERO_CONFIG)
+        args = argparse.Namespace(
+            scene=None, arm=None, primitives_config=None, mock_robot=False,
+            no_z_floor=False, z_floor_m=None, z_floor=False, z_floor_name=None,
+            mock_cameras=False,
+        )
+        session = make_session(cfg, args, "openarm")
+        session.connect()
+        self.addCleanup(session.close)
+        primitives = _load(resolve_primitives_path(args, cfg, "openarm"))
+        controller = make_controller(cfg, primitives, session, args, "openarm")
+        self.assertEqual(controller.settle_steps, int(cfg["settle_steps"]))
+        self.assertEqual(controller.gripper_settle_s, float(cfg["gripper_settle_s"]))
+        self.assertEqual(controller.gripper_min_settle_s, float(cfg["gripper_min_settle_s"]))
+        self.assertEqual(controller.grasp_open_width_m, float(cfg["open_width_m"]))
+        self.assertAlmostEqual(controller.step_m, float(cfg["step_m"]))
 
 
 class OpenArmFrameTests(unittest.TestCase):
+
     """The pose conversion is the easiest silent bug: both orders are 7 numbers."""
 
     def test_quaternion_order_roundtrips(self) -> None:
@@ -163,7 +328,20 @@ class OpenArmFrameTests(unittest.TestCase):
 
 @unittest.skipUnless(_sim_available(), "OpenArm sim dependencies not installed")
 class OpenArmSimTests(unittest.TestCase):
-    """Builds the real MuJoCo world; needs the checkout plus a GL backend."""
+    """Builds the real MuJoCo world; needs the sim wheels plus a GL backend.
+
+    The default cube scene is self-contained. Tests that load ``insert_flower`` call
+    :meth:`_require_flower_scene`, which skips when its VLABench meshes have not been
+    downloaded -- a fresh clone must pass without them.
+    """
+
+    @staticmethod
+    def _require_flower_scene() -> None:
+        if not is_vlabench_assets_present():
+            raise unittest.SkipTest(
+                "insert_flower meshes not downloaded; run "
+                "bash scripts/model/download_vlabench_assets.sh"
+            )
 
     def setUp(self) -> None:
         import os
@@ -248,6 +426,7 @@ class OpenArmSimTests(unittest.TestCase):
 
         from core.openarm.openarm_session import OpenArmSession, OpenArmSessionConfig
 
+        self._require_flower_scene()
         session = OpenArmSession(
             OpenArmSessionConfig(scene="insert_flower", success_check="flowers_in_vase")
         )
@@ -269,6 +448,7 @@ class OpenArmSimTests(unittest.TestCase):
         """The cube bodies do not exist there; the predicate must not raise."""
         from core.openarm.openarm_session import OpenArmSession, OpenArmSessionConfig
 
+        self._require_flower_scene()
         session = OpenArmSession(
             OpenArmSessionConfig(scene="insert_flower", success_check="cubes_on_table")
         )

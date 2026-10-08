@@ -263,19 +263,44 @@ duck type (`get_ee_pose` / `get_gripper_position` / `control_gripper` /
 integration, the Z floor, empty-grasp detection and the `auto_release` plugin
 are therefore the same code as on hardware.
 
-- `scripts/run_openarm_mvtoken.py` — entry point; config `configs/robot_openarm.yaml`.
-  `--scene insert_flower` swaps the default three-cube tabletop for the VLABench
-  vase + three roses; `--arm left|right` picks the driven arm (the other holds
-  its start pose).
-- `--dump-views` and `--probe-axes` are the two calibration checks. Run both
-  before reading any rollout.
+Two entry points share one world:
 
-The model, IK and cameras are **not vendored**. They come from an
-`embodied_ai-llm` checkout, located via the config's `openarm_root`,
-`OPENARM_ROOT`, or the sibling-checkout search in `core/openarm/sim.py`.
-Only that project's simulation modules are imported; its FastAPI/pydantic/placo
-runtime is never loaded, which is why the base environment's `numpy<2` works
-here (measured; `openarm_control` and `mujoco` do not require numpy 2).
+| mode | entry point | config |
+| --- | --- | --- |
+| zero-shot (frontier VLM + plugin stack) | `scripts/run_real.py` | `configs/robot_openarm_zero.yaml` |
+| fine-tuned (one action token per step) | `scripts/run_openarm_mvtoken.py` | `configs/robot_openarm.yaml` |
+
+Both drive the same session and the same controller factory
+(`core/openarm/controller.py`); only the decision loop differs. A test asserts
+the two configs agree on the world, the cameras and the safety values, so a
+change in one cannot silently move the task out from under the other.
+
+`--scene insert_flower` swaps the default three-cube tabletop for the VLABench
+vase + three roses; `--arm left|right` picks the driven arm (the other holds its
+start pose). On the zero-shot entry point `--dump-views` and `--probe-axes` are
+not defined, so calibrate once with the mvtoken entry point before reading any
+rollout.
+
+The simulator is **self-contained**:
+
+- the physics/IK/camera glue is vendored in `core/openarm/backend/`
+  (Apache-2.0, provenance in `backend/NOTICE.md`);
+- the robot model, pedestal, meshes and the official `openarm_control` IK come
+  from the `openarm-mujoco` / `openarm-control` wheels;
+- the default `openarm2.xml` scene ships with the repo.
+
+No `embodied_ai-llm` checkout is involved. The wheels are installed by
+`bash scripts/setup.sh base --openarm`; the upstream project's
+FastAPI/pydantic/placo stack and its `numpy>=2` pin never enter this venv
+(measured; `openarm_control` and `mujoco` run on `numpy<2`).
+
+The one exception is the `insert_flower` scene: its VLABench meshes and textures
+(~25 MB) are not redistributable with this repository, so they are fetched on
+demand at a pinned revision with sha256 verification:
+
+```bash
+bash scripts/model/download_vlabench_assets.sh
+```
 
 Three parts of the embodiment are easy to get wrong, and each is asserted by a
 test in `tests/test_openarm_sim.py`:
@@ -292,8 +317,9 @@ test in `tests/test_openarm_sim.py`:
 - **The axis signs follow the camera, not the robot.** The head camera's
   image-left is world **+Y**, so `MV_LEFT` is `+Y` — the opposite sign to the
   real Franka primitives file. `--probe-axes` measures this and
-  `configs/robot_openarm.yaml` documents it; inverting it produces the classic
-  left/right oscillation.
+  `configs/primitives_openarm.yaml` owns it (the fine-tuned config repeats the
+  same vectors under `move_vectors`, and a test asserts they match); inverting
+  it produces the classic left/right oscillation.
 
 Measured facts (load-bearing; from the model, not assumed):
 
@@ -312,4 +338,8 @@ Measured facts (load-bearing; from the model, not assumed):
 Cross-domain caveat, stronger here than for the other simulators: the
 released `_sim` policy was trained on Franka/Piper single-arm rollouts, so a
 bimanual OpenArm with a different gripper, camera and workspace is well outside
-its training distribution. Numbers from this harness are exploratory.
+its training distribution. Numbers from the fine-tuned entry point are
+exploratory. The zero-shot entry point is a frontier VLM reading the same
+prompts as on hardware, so it is not limited by that training corpus, but it is
+still an un-tuned embodiment: verify the two calibration checks before trusting
+either mode.

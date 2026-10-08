@@ -1,0 +1,39 @@
+# Atomic action units for the bimanual OpenArm in MuJoCo (real-arm controller, sim robot).
+#
+# Read by core/openarm/controller.py via RealAtomicController.from_primitives_config.
+# The fine-tuned entry point (scripts/run_openarm_mvtoken.py) passes the same values from
+# the robot config's `move_vectors` block; a test asserts the two never drift.
+
+# Commanded step per token. The OpenArm sim tracks its setpoint closely -- measured
+# 20.1 mm achieved per 20 mm commanded on all three axes -- so unlike RoboLab's relative IK
+# this needs no lag compensation: step_m IS the physical distance travelled.
+step_m: 0.02
+# Not offered to the model on this rig (the prompt's vocabulary is translation-only unless
+# plugins.rotation is on), but the controller requires a value.
+yaw_step_rad: 0.15
+# Per-command safety clamps. The real Franka rig's defaults (0.05 m / 0.5 rad) are wider
+# than one token, so they only bound pathological setpoints; keep them.
+osc_translation_output_max_m: 0.05
+osc_rotation_output_max_rad: 0.5
+
+# Base-frame unit vector per move token, in the OpenArm arm_origin frame (axis aligned with
+# world): +X forward (away from the robot), +Y to the robot's LEFT, +Z up.
+#
+# These are deliberately NOT the naive axis signs, because the prompt is written in IMAGE
+# terms ("TARGET near the image left -> MV_LEFT"). The head camera looks along
+# (+0.5, 0, -0.866) with its image-right axis at world -Y, so a +Y displacement appears on
+# the image LEFT and an image-left target is reached by INCREASING Y. Measured by
+# projecting world +X / +Y into the head frame; re-checkable with
+# `scripts/run_openarm_mvtoken.py --probe-axes`, which reports the achieved displacement
+# per token. Getting this backwards produces the classic MV_LEFT/MV_RIGHT oscillation.
+atomic_primitives:
+  MV_FWD:   [1.0, 0.0, 0.0]
+  MV_BACK:  [-1.0, 0.0, 0.0]
+  MV_LEFT:  [0.0, 1.0, 0.0]    # image-left == world +Y
+  MV_RIGHT: [0.0, -1.0, 0.0]   # image-right == world -Y
+  MV_UP:    [0.0, 0.0, 1.0]
+  MV_DOWN:  [0.0, 0.0, -1.0]
+  # Signs calibrated so the token matches the turn seen in the WRIST view. Only used when
+  # plugins.rotation is enabled; kept here so the file is a complete action-unit mapping.
+  ROTATE_CW: 1.0
+  ROTATE_CCW: -1.0

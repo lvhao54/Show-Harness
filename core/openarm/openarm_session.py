@@ -46,12 +46,8 @@ import numpy as np
 from PIL import Image
 
 from core.openarm.openarm_interface import OpenArmSimRobot
-from core.openarm.sim import _ensure_render_backend, make_openarm_backend
+from core.openarm.sim import make_openarm_backend
 from core.record.images import prepare_view
-
-# MuJoCo resolves its GL backend at the first renderer creation, so choose the headless
-# backend before this session captures anything (see core.openarm.sim).
-_ensure_render_backend()
 
 #: Success predicates the session understands (``"none"`` disables checking).
 SUCCESS_CHECKS = ("none", "cubes_on_table", "flowers_in_vase")
@@ -66,7 +62,6 @@ _FLOWER_BODIES = ("flower_1", "flower_2", "flower_3")
 class OpenArmSessionConfig:
     """World + camera settings for one OpenArm simulation session."""
 
-    openarm_root: Optional[str] = None
     scene: Optional[str] = None
     arm_side: str = "right"
     control_hz: float = 60.0
@@ -121,7 +116,6 @@ class OpenArmSession:
             f"[{self.LOG_TAG}] building MuJoCo world (scene={cfg.scene or 'default cubes'}) ..."
         )
         self.backend = make_openarm_backend(
-            openarm_root=cfg.openarm_root,
             scene=cfg.scene or None,
             control_hz=float(cfg.control_hz),
         )
