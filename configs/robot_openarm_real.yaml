@@ -1,0 +1,194 @@
+# OpenArm2 Pedestal on REAL hardware, ZERO-SHOT mode: a frontier VLM drives the full
+# plugin harness (planner + per-step atomic controller) through scripts/run_real.py.
+#
+# Backend pair -- same session/controller contract, one switch:
+#   backend: simulation -> configs/robot_openarm_zero.yaml  (scripts/run_openarm_mvtoken.py
+#                         for the fine-tuned policy)
+#   backend: real       -> this file (scripts/run_real.py, or scripts/run_real_mvtoken.py
+#                         with the fine-tuned adapter)
+#
+# Site identity (CAN interfaces, camera USB identities, the measured Z floor) comes from
+# configs/site/openarm.yaml. Copy the example and fill it in before first use; a missing
+# required layer fails loudly at load with instructions.
+defaults:
+  - site/openarm.yaml
+  - {path: backends/internal.yaml, optional: true}
+overlays:
+  - {path: experiments/current_openarm_real.yaml, optional: true}
+
+hardware: openarm
+backend: real
+controller_prompt: openarm
+primitives_config: configs/primitives_openarm.yaml
+
+# ----- Task -----------------------------------------------------------------
+task: "Pick up the red cube and place it on the green cube"
+# task: "Pick up the red cube and place it on the table"
+
+# ----- VLM ------------------------------------------------------------------
+# gemini | chatgpt (see vlm_backends below); local serves any OpenAI-compatible model.
+vlm_backend: gemini
+
+# ----- Rollout --------------------------------------------------------------
+max_steps: 200
+
+# ----- Plugins ----------------------------------------------------------------
+# The paper's zero-shot stack. `dagger` needs the live view, so it is off by default on
+# a supervised hardware run; enable it deliberately when an operator is at the keyboard.
+plugins:
+  subgoal: true
+  proprioception: true
+  recovery: true
+  variable_step: true
+  # Wrist vision is close to the grasp, so re-observe after every move.
+  action_chunk: false
+  mem_text: true
+  smooth: true
+  dagger: false
+  coords: false
+  mcq: false
+  deepplan: false
+  rotation: false
+  video_ref: false
+  affordance: false
+
+# ----- Plugin settings ------------------------------------------------------
+gripper_color: ""            # the OpenArm jaws are dark grey in the head camera
+high_above_table_m: 0.08
+coarse_step_m: 0.04
+fine_step_m: 0.02
+up_step_m: 0.04
+action_chunk_step_num: 3
+mem_text_len: 5
+affordance_verify_rounds: 1
+hd_res: 640                  # planner / affordance renders (the head camera is 1280x720)
+
+# ----- Robot ----------------------------------------------------------------
+# Which arm the single-arm loop drives. The other holds the pose it had at startup.
+arm_side: right
+# Cartesian IK rate. Each CAN worker sends at driver.send_hz independently.
+control_hz: 60
+
+# Commanded step per token, metres. Same value as the simulator: the setpoint is an
+# absolute Cartesian pose and the vendor's filtered position loop tracks it, so step_m IS
+# the commanded displacement. Calibrate the achieved distance before trusting a policy
+# score -- the arm can lag a fast command even when the setpoint is exact.
+step_m: 0.02
+
+# Setpoint re-command contract per atomic token (RealAtomicController). The hardware arm
+# takes a moment to converge, so unlike the simulator a token waits on measured motion.
+settle_steps: 8
+settle_dt_s: 0.05
+# Gripper settle: the jaw is an async position servo, so the controller polls the measured
+# width until it starts moving and then holds steady before the empty-grasp check reads it.
+gripper_settle_s: 2.0
+gripper_min_settle_s: 0.5
+
+# Gripper: 0 rad is fully CLOSED, the joint-range extreme fully OPEN, sign mirrored per
+# arm. Measured stroke is 0.0 -> ~0.143 m free gap, the same jaw geometry as the model, so
+# these thresholds are shared with the simulator config.
+gripper_close_threshold_m: 0.06
+empty_width_m: 0.006
+open_width_m: 0.06
+
+# ----- Safety ---------------------------------------------------------------
+# Lower bound on the control-point Z in arm_origin. The calibrated value lives in
+# configs/site/openarm.yaml (`z_floor_m`, measured per cell); null there fails the
+# autonomous run instead of descending blind. Override for one run with --z-floor-m.
+# `false` is never a safe default for an autonomous run -- it removes the descent limit.
+enable_z_floor: true
+
+# ----- Driver ---------------------------------------------------------------
+# Site identity (CAN interfaces, camera identities, the measured Z floor and the
+# watchdog confirmation) is merged from configs/site/openarm.yaml. These are the values a
+# cell may tune without touching the site file; `profile` selects the vendor's Pedestal
+# kinematics.
+driver:
+  profile: openarm_pedestal
+  # Keep false for the first connection: true runs the vendor's configured startup
+  # trajectory. Enable only when the cell is clear and that motion is what you want.
+  startup_trajectory: false
+  send_hz: 200
+  cutoff_hz: 5
+  startup_timeout_seconds: 30
+  shutdown_timeout_seconds: 5
+  max_feedback_seconds: 0.2
+  max_dispatch_seconds: 0.2
+  control_timeout_seconds: 0.5
+  max_camera_age_seconds: 0.2
+  camera_startup_timeout_seconds: 5
+  camera_close_timeout_seconds: 1
+  jpeg_quality: 90
+  # One-shot support preload: latches the stable "commanded minus measured" arm
+  # offset so a Cartesian command does not unload the position loop.
+  preload_window_seconds: 0.3
+  preload_stability_tolerance: 0.005
+  preload_max_offset: 0.15
+
+# ----- Cameras --------------------------------------------------------------
+# Raw sizes are the rig's own (head 1280x720 per eye, wrist 960x600): the head view is
+# 16:9 and is centre-cropped to 4:3 before letterboxing, matching the training rigs.
+observation_resolution: 256
+agentview_rotation_degrees: 0
+agentview_flip: none
+agentview_crop_aspect: 1.3333
+# HONEST DEFAULT, NOT A MEASUREMENT: the shipped values mirror the simulated mounts, but
+# the physical wrist brackets are what set this and must be verified on YOUR cell. Write
+# both views to disk and check that the fingertips sit at the TOP and MV_LEFT moves the
+# hand image-left:
+#   python scripts/run_openarm_mvtoken.py --robot-config configs/robot_openarm_real.yaml \
+#     --dump-views
+# (this connects and enables the arms to read the pose -- the cell must be clear). The wrist
+# frames are 960x600 (8:5), so the 4:3 crop is a real crop, not a no-op; re-measure before
+# reading anything into a policy score.
+wrist_rotation_degrees: 270
+wrist_flip: both
+wrist_crop_aspect: 1.3333
+use_wrist_image: true
+
+# ----- Models ---------------------------------------------------------------
+vlm:
+  base_url: http://localhost:8000/v1
+  # Match controller_openarm.txt's emitted depth tokens; images stay upright.
+  execution_token_swap: [MV_FWD, MV_BACK]
+
+vlm_backends:
+  gemini:
+    provider: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    model: gemini-3.1-pro    # the paper's default zero-shot model
+    api_key_env: GEMINI_API_KEY
+    max_tokens: 2048
+    reasoning_cot: true
+    reasoning_effort: medium   # low | medium | high
+    max_retries: 10
+  chatgpt:
+    provider: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-5.5
+    api_key_env: CHATGPT_API_KEY
+    max_tokens: 2048
+    reasoning_cot: true
+    reasoning_effort: medium   # low | medium | high
+    max_retries: 10
+  local:
+    # Any OpenAI-compatible local server; `model` must match what it reports.
+    provider: vllm
+    base_url: http://localhost:8000/v1
+    model: Qwen/Qwen3.5-9B
+    max_tokens: 2048
+    reasoning_cot: true
+  gateway:
+    # Any OpenAI-compatible hosted gateway. Point `base_url` (or declare `base_url_env`)
+    # and `model_env` at your own endpoint; the key is read from $OPENAI_API_KEY, so no
+    # secret lives in this file.
+    provider: openai
+    base_url: https://api.openai.com/v1
+    base_url_env: OPENAI_BASE_URL
+    model: gpt-6.1-sol
+    model_env: OPENAI_MODEL
+    api_key_env: OPENAI_API_KEY
+    max_tokens: 4096
+    reasoning_cot: true
+    reasoning_effort: xhigh   # low | medium | high
+    max_retries: 10

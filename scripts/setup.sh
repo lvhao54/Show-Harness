@@ -7,6 +7,7 @@ set -euo pipefail
 #   bash scripts/setup.sh base           # .venv        the harness
 #   bash scripts/setup.sh base --real    #              + Franka/Piper hardware layer
 #   bash scripts/setup.sh base --openarm #              + OpenArm MuJoCo simulator
+#   bash scripts/setup.sh base --openarm-real #         + OpenArm CAN hardware stack
 #   bash scripts/setup.sh serve          # .venv-vllm   serve a VLM locally
 #   bash scripts/setup.sh libero <dir>   # <dir>/.venv  a LIBERO-family simulator repo
 #
@@ -58,10 +59,14 @@ require_uv() {
 setup_base() {
   local req="${REPO_ROOT}/requirements/requirements.txt"
   case "${1:-}" in
-    --real)    req="${REPO_ROOT}/requirements/requirements-real.txt" ;;
-    --openarm) req="${REPO_ROOT}/requirements/requirements-openarm.txt" ;;
-    "")        ;;
-    *) echo "unknown base option: $1 (--real / --openarm)" >&2; exit 1 ;;
+    --real)          req="${REPO_ROOT}/requirements/requirements-real.txt" ;;
+    --openarm)       req="${REPO_ROOT}/requirements/requirements-openarm.txt" ;;
+    --openarm-real)  req="${REPO_ROOT}/requirements/requirements-openarm-real.txt" ;;
+    "")              ;;
+    *)
+      echo "unknown base option: $1 (--real / --openarm / --openarm-real)" >&2
+      exit 1
+      ;;
   esac
 
   # uv when it is around (much faster), plain venv+pip otherwise. Nothing here needs a
@@ -95,6 +100,21 @@ OpenArm: the default cube scene is ready. The `insert_flower` scene additionally
 needs its VLABench meshes (not redistributable with this repo):
 
   bash scripts/model/download_vlabench_assets.sh
+EOF
+  fi
+  if [ "${1:-}" = "--openarm-real" ]; then
+    cat <<'EOF'
+
+OpenArm real hardware: next steps before the first rollout.
+
+  1. Copy the site template and fill in CAN interfaces, camera USB identities and
+     calibrate the Z floor:
+       cp configs/site/openarm.yaml.example configs/site/openarm.yaml
+       python scripts/openarm/capture_z_floor.py --arm right --write
+  2. Preflight (read-only; checks CAN links, cameras, key and floor):
+       python scripts/check_setup.py --robot-config configs/robot_openarm_real.yaml
+  3. Run (after verifying the motor watchdog and physical stop):
+       python scripts/run_real.py --robot-config configs/robot_openarm_real.yaml
 EOF
   fi
 }

@@ -1,0 +1,25 @@
+# OpenArm2 Pedestal REAL-hardware overlay. Install INSTEAD of requirements.txt:
+#
+#   bash scripts/setup.sh base --openarm-real
+#
+# Adds the vendor CAN driver stack and the OpenCV build the USB cameras use. The driver is
+# pinned because it talks to motor controllers over CAN: an unreviewed upgrade can change
+# enable, safety-limit or stop-trajectory behaviour.
+#
+# Requirements:
+#   * a SocketCAN interface per arm (can0/can1), brought up before the session starts
+#   * the CAN userspace library the openarm-can wheel builds against
+#
+# This overlay deliberately does NOT include the MuJoCo stack: `--openarm` adds that for
+# the simulator, and the two can be combined when one machine runs both
+# (bash scripts/setup.sh base --openarm --openarm-real is not supported; install the
+# simulator overlay and add these two lines, or vice versa).
+
+-r requirements.txt
+
+openarm-driver==0.5.1
+openarm-control==0.4.0
+openarm-mujoco>=2.2.0
+# Headless camera capture for the three USB cameras (the base env ships opencv-python,
+# which is sufficient; kept here so a minimal install still has it).
+opencv-python>=4.10,<4.12

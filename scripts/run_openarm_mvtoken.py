@@ -47,6 +47,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core.config import load_secrets_env, load_yaml
+from core.launch import openarm_backend
 from core.openarm.openarm_session import OpenArmSession, OpenArmSessionConfig
 from core.record.episode_logger import EpisodeLogger
 from core.runners.mvtoken import MvTokenRunner
@@ -235,11 +236,45 @@ def main() -> int:
     prompt_template = prompt_path.read_text(encoding="utf-8").strip()
     print(f"Prompt: {prompt_path} (version {args.version})")
 
-    session = OpenArmSession(_session_config(cfg, args))
+    backend = openarm_backend(cfg)
+    if backend == "real":
+        if args.scene is not None or args.success_check is not None:
+            print(
+                "[openarm] --scene / --success-check are simulator-only: the real rig has "
+                "no MJCF world and no independent scene predicate. Use "
+                "configs/robot_openarm.yaml for the simulator.",
+                file=sys.stderr,
+            )
+            return 2
+        # Fail before any device is opened when the measured floor is missing. The
+        # launcher's own session factory is used so this path and run_real.py cannot
+        # drift on camera transforms or the driver block.
+        from core.launch import make_openarm_real_session
+
+        session = make_openarm_real_session(cfg, args)
+        what = "hardware"
+        if (
+            bool(cfg.get("enable_z_floor", True))
+            and cfg.get("z_floor_m") is None
+            and not args.no_z_floor
+            and args.z_floor_m is None
+        ):
+            print(
+                "\n[openarm] the Z floor is enabled but no measured height is set. Rest "
+                "the driven gripper on the tabletop, then run:\n"
+                "  python scripts/openarm/capture_z_floor.py --arm "
+                f"{session.config.arm_side} --write\n"
+                "or pass --z-floor-m <height>, or --no-z-floor (not recommended).",
+                file=sys.stderr,
+            )
+            return 2
+    else:
+        session = OpenArmSession(_session_config(cfg, args))
+        what = "the simulation"
     try:
         session.connect()
     except Exception as exc:  # noqa: BLE001 - startup guidance beats a traceback
-        print(f"\n[openarm] could not start the simulation: {exc}", file=sys.stderr)
+        print(f"\n[openarm] could not start {what}: {exc}", file=sys.stderr)
         return 2
 
     try:
@@ -288,10 +323,10 @@ def main() -> int:
         print(f"Task: {task}")
         logger.write_metadata(
             {
-                "sim": "openarm",
-                "scene": session.config.scene,
+                "backend": backend,
+                "scene": getattr(session.config, "scene", None),
                 "arm_side": session.config.arm_side,
-                "success_check": session.config.success_check,
+                "success_check": getattr(session.config, "success_check", "none"),
                 "task": task,
                 "robot_config": cfg,
                 "prompt_file": str(prompt_path.resolve()),
@@ -331,8 +366,13 @@ def main() -> int:
             logger.write_planner_diagnostics({"scene_truth": session.scene_truth()})
         except Exception as exc:  # noqa: BLE001 - diagnostics must not fail a rollout
             print(f"[openarm] could not write scene truth: {exc}")
-        # An explicitly requested physics predicate must not be bypassed by DONE.
-        checked = str(session.config.success_check or "none").strip().lower() != "none"
+        # An explicitly requested physics predicate must not be bypassed by DONE. The
+        # hardware session has none, so completion there is the policy's own DONE.
+        checked = (
+            backend == "simulation"
+            and str(getattr(session.config, "success_check", "none") or "none").strip().lower()
+            != "none"
+        )
         completed = env_success if checked else result.end_reason == "done"
         return 0 if completed else 2
     finally:

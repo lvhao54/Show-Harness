@@ -26,7 +26,12 @@ DEFAULT_RETRY_MAX_S = 30.0
 RETRY_HINT_CEILING_S = 90.0
 # Besides 5xx: request timeout, transient conflict, too-early, and rate limit are all
 # worth retrying; every other 4xx is a caller/auth error that a retry cannot fix.
-RETRYABLE_STATUS_CODES = frozenset({408, 409, 425, 429})
+# 499 ("client closed request") is an nginx-family code for a dropped upstream
+# connection, not a caller error: the reverse proxies in front of a hosted gateway emit
+# it when they time out mid-response, and the same request succeeds on retry. Measured:
+# a rollout on this rig died on 499 with retries exhausted at 2; the gateway log showed
+# the upstream connection reset, not a rejected request.
+RETRYABLE_STATUS_CODES = frozenset({408, 409, 425, 429, 499})
 
 
 # Both vendor spellings of "do not emit a reasoning block". Every bare-token shape forces

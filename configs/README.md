@@ -11,6 +11,7 @@ One robot config per (rig × mode):
 | `robot_maniskill.yaml`, `robot_robolab.yaml` | simulators, fine-tuned | `scripts/run_maniskill_mvtoken.py` / `scripts/run_robolab_mvtoken.py` |
 | `robot_openarm.yaml` | OpenArm in MuJoCo, fine-tuned | `scripts/run_openarm_mvtoken.py` |
 | `robot_openarm_zero.yaml` | OpenArm in MuJoCo, zero-shot | `scripts/run_real.py` |
+| `robot_openarm_real.yaml` | OpenArm2 Pedestal on real hardware, zero-shot | `scripts/run_real.py` (fine-tuned: `scripts/run_openarm_mvtoken.py`) |
 | `primitives_<embodiment>.yaml` | action-unit → motion mapping (axis signs, step, yaw) | read by the interpreters |
 
 ## Layering
@@ -31,9 +32,10 @@ overlays:                                   # merged OVER the body (overlay wins
   over `defaults:`, so a captured value always takes effect.
 - **`site/`** holds what only your lab can know: the robot's address and
   camera serials (`site/franka.yaml`), per-arm poses and floors
-  (`site/piper_arms.yaml`). Copy the shipped `.example` files and fill them
-  in; the real-rig configs refuse to run without them. Sim configs pull no
-  site layer — there is no hardware to describe.
+  (`site/piper_arms.yaml`), and the OpenArm Pedestal's CAN interfaces, camera
+  USB identities and measured Z floor (`site/openarm.yaml`). Copy the shipped
+  `.example` files and fill them in; the real-rig configs refuse to run without
+  them. Sim configs pull no site layer — there is no hardware to describe.
 - **`backends/` and `experiments/`** are optional layers for
   organization-internal endpoint catalogs and the currently active experiment
   state. They are absent from the public release, where every config resolves
@@ -55,7 +57,7 @@ you switch.
 | Config | Default | Also defined |
 | --- | --- | --- |
 | `robot_franka.yaml`, `robot_piper.yaml` | `gemini` | `chatgpt` (+ `local` on Franka) |
-| `robot_openarm_zero.yaml` | `gemini` | `chatgpt`, `local` |
+| `robot_openarm_zero.yaml`, `robot_openarm_real.yaml` | `gemini` | `chatgpt`, `local` |
 | `*_ft.yaml` | `qwen3_5_2b` | the other released adapters, `finetuned_local`, hosted profiles |
 | `robot_maniskill.yaml`, `robot_robolab.yaml`, `robot_openarm.yaml` | `qwen3_5_2b` (the sim adapter) | `finetuned_local` |
 

@@ -55,6 +55,7 @@ REAL_CONFIGS = (
     "robot_franka_ft.yaml",
     "robot_piper.yaml",
     "robot_piper_ft.yaml",
+    "robot_openarm_real.yaml",
 )
 SIM_CONFIGS = (
     "robot_maniskill.yaml",

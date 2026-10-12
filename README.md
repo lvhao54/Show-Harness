@@ -100,7 +100,8 @@ you need them. `bash scripts/setup.sh` with no arguments prints which already ex
 
 `bash scripts/setup.sh base --real` adds the Franka/Piper hardware layer (RealSense, ROS
 shims, teleop window). Zero-shot and sim work do not need it.
-`bash scripts/setup.sh base --openarm` adds the OpenArm MuJoCo stack
+`bash scripts/setup.sh base --openarm` adds the OpenArm MuJoCo stack, and
+`bash scripts/setup.sh base --openarm-real` adds the CAN hardware stack
 ([docs/simulators.md](docs/simulators.md)); its `insert_flower` scene additionally fetches
 its meshes once with `bash scripts/model/download_vlabench_assets.sh`.
 

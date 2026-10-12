@@ -1,0 +1,65 @@
+# OpenArm2 Pedestal rig identity: copy this file to configs/site/openarm.yaml and
+# fill in the values for YOUR cell. configs/robot_openarm_real.yaml requires it and
+# refuses to start without it. The simulator config does not use a site layer.
+#
+# This file owns site-specific identity and per-cell calibration; the shared robot
+# config (configs/robot_openarm_real.yaml) owns the task, prompts, rates and policy.
+#
+# CAN interfaces come up as SocketCAN links, one per arm and never shared:
+#   sudo ip link set can0 up type can bitrate 1000000
+# or use the vendor's own setup:  openarm-can-cli can_configure
+driver:
+  right_can_interface: "can0"
+  left_can_interface: "can1"
+
+  # The backend refuses to enable motors until this is true. Set it only after verifying
+  # the motor/controller watchdog expiry and the physical stop behaviour ON THIS ROBOT.
+  # Python process liveness is not a hardware watchdog.
+  hardware_watchdog_confirmed: false
+
+  # Optional calibrated vendor YAML (absolute path recommended). It owns joint offsets,
+  # PD gains, motor limits and the start/stop trajectories; the profile still selects
+  # the Pedestal kinematics. Omit to use the driver package's built-in openarm_pedestal.
+  # driver_config: "/absolute/path/to/openarm_pedestal.calibrated.yaml"
+
+  # ---- Cameras ---------------------------------------------------------------
+  # Addressed by USB identity, NEVER by /dev/videoN index: index order is not stable
+  # across reboots, and a swap silently sends the wrist view to the wrong arm. List the
+  # connected cameras with:
+  #   for d in /sys/class/video4linux/video*; do echo "$d: $(cat $d/name)"; done
+  #   udevadm info --query=property --name=/dev/video0 | grep -E 'ID_(SERIAL|VENDOR_ID|MODEL_ID)'
+  # An absolute /dev/v4l/by-id/... path also works, via `index_or_path:`.
+  #
+  # The head camera is the AgentView and the driven arm's wrist camera the wrist view,
+  # so the role names must stay camera_head / camera_wrist_left / camera_wrist_right.
+  cameras:
+    camera_wrist_left:
+      vendor: "04b4"
+      product: "4950"
+      serial: "CAM_LEFT"
+      width: 960
+      height: 600
+      fps: 30
+    camera_wrist_right:
+      vendor: "04b4"
+      product: "4950"
+      serial: "CAM_RIGHT"
+      width: 960
+      height: 600
+      fps: 30
+    camera_head:
+      vendor: "2b03"
+      width: 2560
+      height: 720
+      fps: 30
+      # The ZED Mini UVC frame is side-by-side; deliver one eye. "stereo" keeps both.
+      view: "left"
+
+# Z safety floor: the control-point height (metres, arm_origin frame) at which the
+# gripper just touches YOUR tabletop. The controller blocks every descent below it, so an
+# autonomous run refuses to start until this is a measured number -- `null` is
+# deliberate and safe: it forces the calibration instead of guessing.
+#
+# Capture it with the gripper resting on the table:
+#   python scripts/openarm/capture_z_floor.py --arm right --write
+z_floor_m: null          # !! MEASURE BEFORE ANY AUTONOMOUS RUN !!

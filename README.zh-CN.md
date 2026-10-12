@@ -98,7 +98,7 @@ https://github.com/user-attachments/assets/bd2d31db-f5c5-4554-85bb-2aa206876ac7
 | `<checkout>/.venv` | `bash scripts/setup.sh libero <checkout>` | LIBERO / LIBERO-plus / LIBERO-PRO 的某个 checkout；harness 会装进该环境并在其中运行（[docs/simulators.md](docs/simulators.md)） |
 
 接入真机时追加 `--real`（`bash scripts/setup.sh base --real`），以安装 Franka/Piper 所需的硬件依赖：RealSense、若干 ROS 兼容层与遥操作窗口。仅运行零样本或仿真实验时无需安装
-；OpenArm 的 MuJoCo 仿真栈用 `bash scripts/setup.sh base --openarm` 安装（见 [docs/simulators.md](docs/simulators.md)），其中 `insert_flower` 场景的网格需先执行一次 `bash scripts/model/download_vlabench_assets.sh` 下载。
+；OpenArm 的 MuJoCo 仿真栈用 `bash scripts/setup.sh base --openarm` 安装，真机 CAN 栈用 `bash scripts/setup.sh base --openarm-real` 安装（见 [docs/simulators.md](docs/simulators.md)），其中 `insert_flower` 场景的网格需先执行一次 `bash scripts/model/download_vlabench_assets.sh` 下载。
 
 模型服务是独立进程，因此 harness 可以对接任意 OpenAI 兼容接口：既可以是云端托管的模型，也可以是实验室内另一台机器上部署的服务。本地无需安装 `.venv-vllm`
 

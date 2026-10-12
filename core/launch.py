@@ -363,10 +363,11 @@ def resolve_hardware(args: argparse.Namespace, robot_cfg: dict[str, Any]) -> str
     constants (Z-floor, gripper widths, camera identity) always travel with the
     matching config -- there is no separate flag that could contradict it.
 
-    ``openarm`` is the MuJoCo rig: the same plugin harness and the same atomic
-    controller, with the simulation answering the session contract instead of an
-    arm on the network. It carries no site layer, because there is no hardware to
-    describe.
+    ``openarm`` covers both backends of the bimanual Pedestal rig: the MuJoCo
+    simulator (``backend: simulation``, the default) and the real CAN-connected arms
+    (``backend: real``). Both answer the same session and robot contracts, so the plugin
+    harness and the atomic controller are literally the same code. Only the real config
+    carries a site layer, because only hardware has identity to describe.
     """
     hardware = str(robot_cfg.get("hardware", "franka")).strip().lower()
     if hardware not in SUPPORTED_HARDWARE:
@@ -399,10 +400,26 @@ def resolve_primitives_path(
 
 
 
+def openarm_backend(cfg: dict[str, Any]) -> str:
+    """Which OpenArm backend this config runs: ``simulation`` (default) or ``real``.
+
+    The key lives in the robot config (``backend:``), so selection travels with every
+    other rig-specific value and no CLI flag can contradict it.
+    """
+    backend = str(cfg.get("backend", "simulation")).strip().lower()
+    if backend not in ("simulation", "real"):
+        raise ValueError(
+            f"Unknown OpenArm backend {backend!r}; expected 'simulation' or 'real'."
+        )
+    return backend
+
+
 def make_session(cfg: dict[str, Any], args: argparse.Namespace, hardware: str) -> Any:
     if hardware == "piper":
         return PiperSession(piper_session_config(cfg, args))
     if hardware == "openarm":
+        if openarm_backend(cfg) == "real":
+            return make_openarm_real_session(cfg, args)
         return make_openarm_session(cfg, args)
     return FrankaSession(session_config(cfg, args))
 
@@ -441,6 +458,45 @@ def make_openarm_session(cfg: dict[str, Any], args: argparse.Namespace) -> Any:
     from core.openarm.openarm_session import OpenArmSession
 
     return OpenArmSession(openarm_session_config(cfg, args))
+
+
+def openarm_real_session_config(cfg: dict[str, Any], args: argparse.Namespace) -> Any:
+    """The OpenArm Pedestal hardware session config from the resolved robot config.
+
+    ``driver:`` owns CAN interfaces, rates, preload and camera identities; ``cameras``
+    lives inside it, exactly as the config documents. Every value is passed through
+    unchanged -- the backend rejects unknown keys, so a typo fails at startup instead of
+    being ignored. Camera transforms describe the physical mounts and therefore come from
+    the same keys the simulator uses, so one measurement serves both where they match.
+    """
+    from core.openarm.openarm_real_session import OpenArmRealSessionConfig
+
+    driver = dict(cfg.get("driver", {}) or {})
+    cameras = dict(driver.pop("cameras", {}) or {})
+    # The top-level control_hz is the shared rig rate (the simulator reads it too); the
+    # driver block may override it for a cell that needs a different IK rate.
+    driver.setdefault("control_hz", float(cfg.get("control_hz", 60.0)))
+    return OpenArmRealSessionConfig(
+        arm_side=str(getattr(args, "arm", None) or cfg.get("arm_side", "right")),
+        driver=driver,
+        cameras=cameras,
+        observation_resolution=int(cfg.get("observation_resolution", 256)),
+        # The zero-shot planner wants glyph-level detail; reuse the rig's hd key.
+        hd_resolution=int(cfg["hd_res"]) if cfg.get("hd_res") else None,
+        agentview_rotation_degrees=int(cfg.get("agentview_rotation_degrees", 0)),
+        wrist_rotation_degrees=int(cfg.get("wrist_rotation_degrees", 0)),
+        agentview_flip=str(cfg.get("agentview_flip", "none")),
+        wrist_flip=str(cfg.get("wrist_flip", "none")),
+        agentview_crop_aspect=cfg.get("agentview_crop_aspect"),
+        wrist_crop_aspect=cfg.get("wrist_crop_aspect"),
+    )
+
+
+def make_openarm_real_session(cfg: dict[str, Any], args: argparse.Namespace) -> Any:
+    """Build the CAN + USB-camera OpenArm session (real hardware, same contract)."""
+    from core.openarm.openarm_real_session import OpenArmRealSession
+
+    return OpenArmRealSession(openarm_real_session_config(cfg, args))
 
 
 
@@ -598,8 +654,9 @@ def make_controller(
     if hardware == "openarm" and capture:
         raise ValueError(
             "OpenArm: the Z floor would be captured at the start pose, which forbids all "
-            "descent. Set `z_floor_m` in configs/robot_openarm_zero.yaml (the shipped "
-            "value is measured against this model), or pass --z-floor-m <height>."
+            "descent. Set `z_floor_m` in configs/robot_openarm_zero.yaml (sim) or "
+            "configs/robot_openarm_real.yaml (hardware; calibrate it on the cell), or "
+            "pass --z-floor-m <height>."
         )
     step_m = cfg.get("fine_step_m")
     plugins = PluginsConfig.from_config(cfg)

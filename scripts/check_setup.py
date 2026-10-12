@@ -90,11 +90,18 @@ def check_config(r: Report, cfg_path: str):
         r.fail("robot config", f"{cfg_path}: {exc}")
         return None
     if str(cfg.get("hardware", "")).lower() == "openarm":
-        # MuJoCo rig: no site identity or hardware to probe. The checks that matter are
-        # the simulator wheels and the scene's assets, which the imports below prove.
-        r.ok("robot config", f"{cfg_path} (OpenArm simulator)")
-        _check_openarm(r, cfg)
-        cfg["_sim_profile"] = True
+        from core.launch import openarm_backend
+
+        backend = openarm_backend(cfg)
+        if backend == "real":
+            r.ok("robot config", f"{cfg_path} (OpenArm Pedestal, real hardware)")
+            _check_openarm_real(r, cfg)
+        else:
+            # MuJoCo rig: no site identity or hardware to probe. The checks that matter
+            # are the simulator wheels and the scene's assets.
+            r.ok("robot config", f"{cfg_path} (OpenArm simulator)")
+            _check_openarm(r, cfg)
+            cfg["_sim_profile"] = True
         return cfg
     if "hardware" not in cfg and "robot" not in cfg and "arms" not in cfg:
         r.ok("robot config", f"{cfg_path} (simulator profile — rig checks skipped)")
@@ -153,6 +160,84 @@ def _check_openarm(r, cfg):
                "configs/robot_openarm_zero.yaml ships a measured value")
     else:
         r.ok("z floor", f"{float(floor):.3f} m (arm_origin frame)")
+
+
+def _check_openarm_real(r: Report, cfg: dict) -> None:
+    """The OpenArm Pedestal hardware rig: driver wheels, CAN links, cameras, floor.
+
+    Read-only: the driver wheels are imported, the CAN interfaces are matched against the
+    kernel's link table, and the configured camera identities are resolved against the
+    V4L2 inventory. No CAN frame is sent and no camera is opened.
+    """
+    try:
+        from core.openarm.hardware import require_openarm_driver
+
+        require_openarm_driver()
+        r.ok("openarm hardware driver", "openarm-driver + openarm-can importable")
+    except Exception as exc:  # noqa: BLE001
+        r.fail("openarm hardware driver", str(exc)[:200],
+               "bash scripts/setup.sh base --openarm-real")
+        return
+    try:
+        import cv2  # noqa: F401
+
+        r.ok("import cv2", "camera capture available")
+    except Exception as exc:  # noqa: BLE001
+        r.fail("import cv2", str(exc),
+               "the hardware overlay installs opencv-python-headless")
+
+    driver = cfg.get("driver", {}) or {}
+    for key in ("right_can_interface", "left_can_interface"):
+        name = driver.get(key)
+        if not name:
+            r.warn(f"driver.{key}", "not set",
+                   "set it in configs/site/openarm.yaml (one bus per arm)")
+        elif not Path("/sys/class/net", str(name)).exists():
+            r.fail(f"driver.{key}", f"{name} is not a network interface",
+                   "bring the SocketCAN link up: sudo ip link set "
+                   f"{name} up type can bitrate 1000000")
+        else:
+            r.ok(f"driver.{key}", str(name))
+    if driver.get("right_can_interface") == driver.get("left_can_interface") and driver.get(
+        "right_can_interface"
+    ):
+        r.fail("CAN buses", "both arms are on the same interface",
+               "each arm needs its own CAN bus")
+
+    if not driver.get("hardware_watchdog_confirmed"):
+        r.fail("driver.hardware_watchdog_confirmed", "false",
+               "verify the motor watchdog and physical stop on this cell, then set it true")
+    else:
+        r.ok("driver.hardware_watchdog_confirmed", "true")
+
+    cameras = driver.get("cameras", {}) or {}
+    missing = [
+        name for name in ("camera_head", "camera_wrist_left", "camera_wrist_right")
+        if name not in cameras
+    ]
+    if missing:
+        r.fail("driver.cameras", f"missing roles {missing}",
+               "copy configs/site/openarm.yaml.example and fill in the USB identities")
+    else:
+        try:
+            from core.openarm.hardware.cameras import resolve_devices
+
+            resolve_devices(cameras)
+            r.ok("driver.cameras", "all three roles resolve to distinct devices")
+        except Exception as exc:  # noqa: BLE001
+            r.fail("driver.cameras", str(exc)[:200],
+                   "check USB identities with udevadm info --query=property --name=/dev/videoN")
+
+    if cfg.get("enable_z_floor", True):
+        floor = cfg.get("z_floor_m")
+        if floor is None:
+            r.fail("z floor", "enabled but z_floor_m is null",
+                   "rest the gripper on the table and run "
+                   "python scripts/openarm/capture_z_floor.py --arm right --write")
+        else:
+            r.ok("z floor", f"{float(floor):.3f} m (arm_origin frame)")
+    else:
+        r.warn("z floor", "disabled — an autonomous run can command descent without a limit")
 
 
 def _check_franka_identity(r: Report, cfg: dict) -> None:

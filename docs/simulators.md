@@ -2,7 +2,10 @@
 
 Show-Harness integrates three benchmark simulators, plus two arm-specific simulation rigs:
 the LeRobot SO-101 on an Isaac Lab scene and the bimanual OpenArm in MuJoCo
-([SO-101](#so-101-isaac-lab-workshop), [OpenArm](#openarm-mujoco)). They serve two roles:
+([SO-101](#so-101-isaac-lab-workshop), [OpenArm](#openarm-mujoco)). The OpenArm Pedestal
+rig also runs the same contracts on real CAN hardware
+([OpenArm2 Pedestal (real hardware)](#openarm2-pedestal-real-hardware)). They serve two
+roles:
 
 1. **Zero-shot evaluation** — run the deployment pipelines (the subgoal planner
    stack or the fine-tuned action model, see `docs/finetuned.md`) in sim
@@ -16,7 +19,8 @@ vocabulary, the same image transforms (`core/record/images.py`), and measured
 per-config step calibration so one token means ~2 cm of physical travel.
 
 Installing a simulator's dependencies: `bash scripts/setup.sh base --openarm`
-adds the OpenArm stack to `.venv`. ManiSkill and RoboLab each want their own
+adds the OpenArm MuJoCo stack to `.venv`, and `--openarm-real` adds the OpenArm CAN
+hardware stack. ManiSkill and RoboLab each want their own
 interpreter (see below), because their pins conflict with the base environment.
 
 ## LIBERO
@@ -366,6 +370,34 @@ close, checks the corrected grasp/lift, then transports, releases and retreats
 from a stable red-on-green stack without elbow/pedestal contact. It establishes
 that the control path can solve the task; it is not an autonomous policy score.
 
+### Zero-shot validation note (2026-10-10)
+
+Five fresh zero-shot runs of `red_on_green` were executed on this branch against the
+gateway backend (`gpt-6.1-sol`, medium reasoning), with the config otherwise identical to
+the earlier reference run:
+
+| run | steps | end reason | physically stacked |
+| --- | --- | --- | --- |
+| 1 | 65 | max_steps_exceeded | no |
+| 2 | 92 | subgoal_step_cap_exceeded | no (released 4.8 cm short of the green cube) |
+| 3 | 30 | gateway HTTP 499 (aborted) | n/a |
+| 4 | 52 | subgoal_step_cap_exceeded | no (cube nudged off the table) |
+| 5 | 38 | plan_complete | **yes** (red-green dz = 45.0 mm, dxy = 5.1 mm) |
+
+So 1 of 5 attempts completed. Two of the four failures were infrastructure- or
+budget-shaped rather than policy-shaped: run 3 died on a reverse-proxy 499 mid-response
+(now classified retryable), and runs 1/2/4 were moving toward the target when either the
+episode or the per-stage step cap expired. Run 4 was a genuine policy failure: the model
+kept emitting `MV_RIGHT` in the MOVE stage and pushed the cube off the tabletop.
+
+The successful run is logged with independent ground truth in
+`planner_diagnostics.json` (`success_check.holds: true` plus final object positions), which
+is what makes it a scored result rather than a self-report. That file is now written on the
+zero-shot path too, not only by the fine-tuned entry point.
+
+Both fixes this validation surfaced are in the tree: the gateway 499 retry class
+(`core/vlm/vlm_client.py`) and the zero-shot scene-truth record (`scripts/run_real.py`).
+
 The released `_sim` adapter was trained on other simulators, not OpenArm. The
 local validated experiments that emitted only MV_DOWN are failed cross-domain
 policy transfer; changing the floor cannot supply missing visual/motor training.
@@ -373,3 +405,74 @@ Use the zero-shot path to establish an autonomous baseline, or collect OpenArm
 trajectories and train a corresponding adapter before treating fine-tuned results
 as supported performance. The zero-shot prompt is specific to the fixed horizontal
 tool and native camera mounting; revalidate it if either changes.
+
+## OpenArm2 Pedestal (real hardware)
+
+The same rig has a second backend: `configs/robot_openarm_real.yaml` drives the physical
+CAN-connected arms through the **identical** session/controller/plugin stack. The two
+backends differ only in what answers the robot and session contracts, so a token that
+works in the simulator reaches the same code path on hardware. A `backend:` key in the
+robot config selects it; the simulator configs do not set it (default `simulation`).
+
+| what | simulator | hardware |
+| --- | --- | --- |
+| config | `configs/robot_openarm.yaml` / `robot_openarm_zero.yaml` | `configs/robot_openarm_real.yaml` |
+| session | `core/openarm/openarm_session.py` (MuJoCo) | `core/openarm/openarm_real_session.py` (CAN + USB cameras) |
+| robot duck type | `OpenArmSimRobot` | `core/openarm/hardware/robot.py` |
+| install | `bash scripts/setup.sh base --openarm` | `bash scripts/setup.sh base --openarm-real` |
+| site layer | none | `configs/site/openarm.yaml` (required) |
+
+Setup, in order:
+
+```bash
+# 1. hardware stack + site identity
+bash scripts/setup.sh base --openarm-real
+cp configs/site/openarm.yaml.example configs/site/openarm.yaml
+
+# 2. edit site/openarm.yaml: CAN interfaces, camera USB identities
+# 3. rest one gripper on the table, measure the Z floor (writes the site layer)
+python scripts/openarm/capture_z_floor.py --arm right --write
+
+# 4. read-only preflight: driver wheels, CAN links, cameras, key, floor
+python scripts/check_setup.py --robot-config configs/robot_openarm_real.yaml
+
+# 5. run
+python scripts/run_real.py --robot-config configs/robot_openarm_real.yaml --no-show
+```
+
+What is load-bearing on hardware:
+
+- **`driver.hardware_watchdog_confirmed` gates motion.** The backend refuses to enable
+  motors until an operator has verified the motor/controller watchdog and the physical
+  stop on this cell; Python process liveness is not a watchdog.
+- **The Z floor is a measured per-cell value**, not the simulator's `-0.250` constant.
+  The launcher refuses to capture at the start pose (a raised start forbids all descent, a
+  low one protects nothing), so `z_floor_m` must be a number before an autonomous run.
+- **Each arm owns a CAN interface** (`can0` / `can1`), never shared. The vendor's
+  thread-owned dispatcher enables by measured position (no homing), sends at `send_hz`
+  through a 5 Hz low-pass, and runs its own stop trajectory + disable on shutdown.
+- **A support preload is latched once**, from a stable window of commanded-vs-measured arm
+  joints (jaw excluded). Until it is stable the session waits at startup rather than
+  dispatching a command that would unload the position loop.
+- **The jaw has no width encoder.** The measured finger joint angle is converted through
+  the same geometry the MJCF model uses (a measured cubic fit, 0.011 mm max error,
+  0.0-0.143 m free gap), because the controller's empty-grasp and close/open thresholds
+  are written in metres. The open sign is mirrored per arm.
+- **A heartbeat keeps the arms enabled while the VLM thinks.** The dispatcher stops an arm
+  if it stops hearing from its owner within `control_timeout_seconds`; the session feeds
+  it from a small daemon thread, standing in for the reference runtime's control thread. A
+  process wedged badly enough to starve that thread still triggers the stop path.
+- **Cameras are addressed by USB identity, never by video index.** The head camera is the
+  AgentView and the driven arm's wrist camera the wrist view; a missing or stale frame
+  fails the observation instead of being served as new.
+- **No independent success predicate.** The simulator's scene checks read MuJoCo state; on
+  hardware the policy's own `DONE` is the terminal signal, and `--scene` /
+  `--success-check` are rejected for the real config.
+
+The vendored hardware layer lives in `core/openarm/hardware/` (CAN dispatch, preload,
+cameras) and is exercised by `tests/test_openarm_real.py` plus the ported dispatcher,
+preload and camera suites (`tests/test_openarm_hw_*.py`); those tests inject fake drivers
+and cameras and never open a real device. The reference implementation and its own
+end-to-end validation are described in `embodied_ai-llm/docs/openarm-real.md`; the tests
+here prove the contract and the wiring, not that a given cell is calibrated. Complete the
+physical stop, watchdog, workspace and floor checks on your rig before an autonomous run.

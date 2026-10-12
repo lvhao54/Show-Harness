@@ -35,6 +35,7 @@ Examples
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import os
 from pathlib import Path
@@ -69,6 +70,7 @@ from core.launch import (  # noqa: F401  (re-exported for compatibility)
     make_vlm_client,
     mem_text_len,
     move_to_begin_franka,
+    openarm_backend,
     move_to_begin_on_init,
     piper_session_config,
     recovery_empty_width_m,
@@ -227,23 +229,44 @@ def main() -> int:
         robot_cfg = arm_config(robot_cfg, piper_arm)
         print(f"Piper arm: {piper_arm} (begin pose: {robot_cfg.get('begin_pose', 'begin_joints')})")
     elif hardware == "openarm":
-        # The OpenArm world starts from its own MJCF keyframe, so there is no begin
-        # pose to home to. --arm picks which arm the controller drives; the other
-        # holds the pose it had at startup.
+        backend = openarm_backend(robot_cfg)
+        # Neither backend homes to a named pose for this entry point: the simulator starts
+        # from its MJCF keyframe and the real arm is wherever the operator left it
+        # (the vendor's startup trajectory is opt-in in the driver config). --arm picks
+        # which arm the controller drives; the other holds its startup pose.
         if args.begin_pose:
+            what = "simulator" if backend == "simulation" else "real rig"
             raise ValueError(
-                "--begin-pose does not apply to the OpenArm simulator: the world starts "
-                "from the MJCF 'home' keyframe. Use --arm left|right to pick the arm."
+                f"--begin-pose does not apply to the OpenArm {what}. "
+                "Use --arm left|right to pick the driven arm."
+            )
+        if backend == "real" and (args.scene is not None or args.success_check is not None):
+            raise ValueError(
+                "--scene / --success-check are simulator-only: the real rig has no MJCF "
+                "world and no independent scene predicate (the policy's DONE is the "
+                "terminal signal). Remove them for configs/robot_openarm_real.yaml."
+            )
+        if backend == "real" and (args.mock_robot or args.mock_cameras):
+            # Refuse loudly: these flags belong to the Franka path and are silently
+            # ignored here, so a run the operator believed was a dry run would enable
+            # the real motors.
+            raise ValueError(
+                "--mock-robot / --mock-cameras are not available on the OpenArm real "
+                "backend; this run would enable the physical arms. Use "
+                "configs/robot_openarm_zero.yaml for an offline dry run."
             )
         # --arm overrides the config's arm_side for this run; without it the config wins
         # (the Piper default of "left" must NOT leak into the OpenArm rig, whose own
         # config names the arm the camera transforms were measured for).
         if args.arm:
             robot_cfg["arm_side"] = args.arm
-        print(
-            f"OpenArm (MuJoCo) arm: {robot_cfg.get('arm_side', 'right')} "
+        mode = "real hardware" if backend == "real" else "MuJoCo"
+        extra = (
             f"(scene: {robot_cfg.get('scene') or 'default cubes'})"
+            if backend == "simulation"
+            else "(CAN + USB cameras)"
         )
+        print(f"OpenArm ({mode}) arm: {robot_cfg.get('arm_side', 'right')} {extra}")
     elif args.begin_pose:
         # Franka: an explicit --begin-pose both selects the named pose (poses.<name>
         # in robot_franka.yaml) and enables the begin move for this run; without the
@@ -316,6 +339,19 @@ def main() -> int:
             print(f"           {line}")
 
     session = make_session(cfg, args, hardware)
+    if hardware == "openarm" and openarm_backend(robot_cfg) == "real":
+        # Read the site layer's measured floor before any device is opened, and fail with
+        # the calibration command rather than starting the arms with an unset floor.
+        floor = cfg.get("z_floor_m")
+        if bool(cfg.get("enable_z_floor", True)) and floor is None and not args.no_z_floor:
+            raise SystemExit(
+                "OpenArm real: the Z floor is enabled but no measured height is set. "
+                "Rest the driven gripper on the tabletop, then run:\n"
+                "  python scripts/openarm/capture_z_floor.py --arm "
+                f"{robot_cfg.get('arm_side', 'right')} --write\n"
+                "or pass --z-floor-m <height> for this run, or --no-z-floor to remove the "
+                "descent limit (not recommended)."
+            )
     viewer = LiveView(
         enabled=not args.no_show,
         title=f"Show-Harness | {cfg['task']}",
@@ -400,6 +436,29 @@ def main() -> int:
                 )
             )
         result = runner.run()
+        # Environment ground truth for analysis only, never a policy input: the simulator
+        # session can report object poses and whether the configured predicate holds at the
+        # final state, which is what makes a rollout independently scorable. Best-effort.
+        if hardware == "openarm" and openarm_backend(cfg) == "simulation":
+            try:
+                # Merge, not replace: the runner already wrote the planner attempts here.
+                path = Path(logger.run_dir) / "planner_diagnostics.json"
+                existing = {}
+                if path.is_file():
+                    with path.open("r", encoding="utf-8") as f:
+                        existing = json.load(f)
+                existing.update(
+                    {
+                        "scene_truth": session.scene_truth(),
+                        "success_check": {
+                            "name": str(cfg.get("success_check", "none")),
+                            "holds": bool(session.success()),
+                        },
+                    }
+                )
+                logger.write_planner_diagnostics(existing)
+            except Exception as exc:  # noqa: BLE001 - diagnostics must not fail a rollout
+                print(f"[run-real] could not write scene truth: {exc}")
         # Reset to BEGIN when the rollout finishes (Piper only; no-op if begin_joints
         # is unset). Best-effort: a reset failure must not mask the rollout result.
         if hardware == "piper":
