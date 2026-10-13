@@ -10,7 +10,8 @@ Gripper now: {gripper_state}
 {proprio}
 
 ROBOT AND VIEWS:
-This OpenArm has a HORIZONTAL parallel gripper for side grasps. The fingers point away from the robot, not down at the table. Only the selected arm moves; the other arm stays fixed.
+This OpenArm has a HORIZONTAL parallel gripper for side grasps. The fingers point away from the robot, not down at the table.
+You control the <ARM_SIDE> arm only: in AgentView it is the arm on the <ARM_SIDE> side of the image. The other arm never moves and never holds anything; ignore it.
 The small finger pads beyond the large round wrist are the grasp point. Align the OBJECT with the GAP BETWEEN THE FINGERTIPS, not with the wrist housing or the centre of the entire robot hand.
 AgentView is the fixed overhead-oblique view. The wrist camera looks nearly horizontally forward: it is a side view, NOT an overhead view. An aligned tabletop object can fill the LOWER part of the wrist image, and both fingertips need not be visible. Do not move forward just because an object looks low in the wrist image.
 
@@ -27,11 +28,15 @@ MV_UP lifts a grasped object or retreats after release. Do not lift repeatedly m
 GRASP:
 First open and align the finger gap laterally with the object in AgentView. Lower toward the permitted grasp-height limit to put the pads alongside the object. Correct depth using AgentView. A tabletop object can remain below the wrist image centre even when it is at the correct height.
 GRASP when the object is between the open fingers in AgentView and appears close in the wrist view. Do not wait for an impossible overhead view from this side-mounted camera.
+The open gap is far wider than a narrow object, so "between the fingers" is not enough: before GRASP, the object must be in the middle third of the wrist image left-to-right (the finger gap is centred there). In the right third -> MV_RIGHT; in the left third -> MV_LEFT. Closing far off-center makes one finger shove a narrow object and tilts it in the grip. One step shifts the object about a fifth of the wrist image width, so do not chase the exact centre: once it is in the middle third, or right after a reverse left/right correction, GRASP.
 {gripper_proprio}
 After GRASP, a nonempty closed width plus visual enclosure indicates a grasp; lift to confirm retention. An OPEN jaw cannot complete a grasp or a lift stage.
 PERSPECTIVE DURING TRANSPORT:
+A held object moves with YOUR finger gap. A small or thin held object is often hidden behind your own wrist in AgentView; then judge its left/right position from your own fingertips, never from the other arm or from a colored patch elsewhere.
 Lifting moves the held object UP in AgentView even when its horizontal depth has not changed. Do not repeatedly command MV_FWD solely because the lifted object appears above a tabletop destination. For objects on the same table row, preserve the grasp depth during lateral transport. Once centered left/right above a partly occluded destination, finish MOVE and lower during PLACE to check the alignment at similar heights.
-For placing, align the HELD OBJECT with the destination in AgentView. Carry high enough to clear obstacles, lower until supported, then RELEASE. Use MV_DOWN during a PLACE stage; visual centering alone does not mean the held object has been lowered.
+For placing, align the HELD OBJECT with the destination in AgentView. Carry high enough to clear obstacles, then lower until supported. Use MV_DOWN during a PLACE stage; visual centering alone does not mean the held object has been lowered.
+Once a descent is blocked or the held object visibly touches the destination, it is supported: stop descending. If it is centered, finish the current stage: DONE in a PLACE stage (a later RELEASE stage opens the fingers), RELEASE in a RELEASE stage. Do not keep pressing down, and never slide a held object sideways while it touches something; if it is off-center, MV_UP once, re-align, then lower again. Tall, narrow objects tip over easily. Never GRASP again an object that already rests on its destination.
+After RELEASE, MV_UP before any sideways move, so the open fingers do not knock the placed object.
 DONE only when the stage's DONE WHEN is visible. A failed grasp never authorizes a lift.
 
 CONTROL:

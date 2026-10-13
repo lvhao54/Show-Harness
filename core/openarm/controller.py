@@ -86,6 +86,8 @@ def make_openarm_controller(
     )
     if cfg.get("empty_width_m") is not None:
         kwargs["grasp_min_width_m"] = float(cfg["empty_width_m"])
+    if cfg.get("setpoint_leash_m") is not None:
+        kwargs["setpoint_leash_m"] = float(cfg["setpoint_leash_m"])
     # The caller's already-resolved values win (they may come from CLI flags or plugins).
     kwargs.update(extra_kwargs or {})
     return RealAtomicController.from_primitives_config(robot, primitives_cfg, **kwargs)

@@ -57,8 +57,9 @@ class RedOnGreenTests(unittest.TestCase):
         self.mujoco.mj_forward(self.model, self.data)
 
     def _stack(self) -> None:
-        # 0.1 mm penetration is a normal contact solver tolerance, not a glued cube.
-        self._place("box_red", [0.4, 0.0, 0.4674])
+        # Green's top is at 0.445 m and the upright red block's half-height is 0.03 m.
+        # 0.1 mm penetration is a normal contact solver tolerance, not a glued block.
+        self._place("box_red", [0.4, 0.0, 0.4749])
 
     def test_initial_scene_has_no_stack(self) -> None:
         self.assertFalse(self.session.success())
@@ -67,18 +68,19 @@ class RedOnGreenTests(unittest.TestCase):
         self._stack()
         self.assertTrue(self.session.success())
 
-    def test_airborne_red_cube_fails_even_when_nearly_aligned(self) -> None:
+    def test_airborne_red_block_fails_even_when_nearly_aligned(self) -> None:
         # Still within the positional tolerance, but with no supporting contact.
-        self._place("box_red", [0.4, 0.0, 0.4685])
+        self._place("box_red", [0.4, 0.0, 0.4760])
         self.assertFalse(self.session.success())
 
     def test_airborne_pair_of_cubes_fails(self) -> None:
         self._place("box_green", [0.4, 0.0, 0.5225])
-        self._place("box_red", [0.4, 0.0, 0.5674])
+        self._place("box_red", [0.4, 0.0, 0.5749])
         self.assertFalse(self.session.success())
 
     def test_offset_stack_fails_even_with_red_green_contact(self) -> None:
-        self._place("box_red", [0.43, 0.0, 0.4674])
+        # The block still overlaps green's edge, but its center is past it.
+        self._place("box_red", [0.424, 0.0, 0.4749])
         self.assertFalse(self.session.success())
 
     def test_stack_still_touching_a_gripper_fails(self) -> None:

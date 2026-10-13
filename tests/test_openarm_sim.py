@@ -271,6 +271,7 @@ class OpenArmZeroShotWiringTests(unittest.TestCase):
             "wrist_crop_aspect",
             "step_m",
             "z_floor_m",
+            "setpoint_leash_m",
             "empty_width_m",
             "open_width_m",
             "gripper_close_threshold_m",
@@ -420,7 +421,7 @@ class OpenArmZeroShotWiringTests(unittest.TestCase):
         from scripts.run_openarm_mvtoken import _default_task
 
         self.assertIn("vase", _default_task("insert_flower"))
-        self.assertIn("cube", _default_task(None))
+        self.assertIn("red block", _default_task(None))
 
 
 class OpenArmFrameTests(unittest.TestCase):

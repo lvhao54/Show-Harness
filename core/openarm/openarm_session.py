@@ -28,7 +28,7 @@ Three predicates ship, all read from MuJoCo state that the policy never sees:
 
 * ``"cubes_on_table"`` -- the default scene's three cubes are all still resting on the
   tabletop (nothing knocked off). A cheap "did the arm wreck the scene" check.
-* ``"red_on_green"`` -- the red cube rests on the green cube, which rests on the
+* ``"red_on_green"`` -- the red block rests on the green cube, which rests on the
   table; both cubes are stationary and clear of robot contact.
 * ``"flowers_in_vase"`` -- the ``insert_flower`` scene's task: every rose tip is brought to
   the vase mouth. **This is a GEOMETRIC relation, not physical containment**: the upstream
@@ -59,7 +59,7 @@ from core.record.images import prepare_view
 #: Success predicates the session understands (``"none"`` disables checking).
 SUCCESS_CHECKS = ("none", "cubes_on_table", "red_on_green", "flowers_in_vase")
 
-#: Default scene's cube bodies, from the upstream ``openarm2.xml`` keyframe.
+#: Default scene's box bodies (red 2x1x6 cm block, green/blue 4.5 cm cubes).
 _CUBE_BODIES = ("box_red", "box_green", "box_blue")
 #: Rose bodies in the upstream ``insert_flower`` scene.
 _FLOWER_BODIES = ("flower_1", "flower_2", "flower_3")
@@ -286,7 +286,7 @@ class OpenArmSession:
         return self._flowers_in_vase()
 
     def _cubes_on_table(self) -> bool:
-        """All three cubes still resting on the tabletop (not knocked off the edge)."""
+        """All three boxes still resting on the tabletop (not knocked off the edge)."""
         model, data = self.backend.model, self.backend.data
         if self.config.scene is not None:
             # The cube bodies exist only in the default tabletop scene.
@@ -305,9 +305,9 @@ class OpenArmSession:
     def _red_on_green(self) -> bool:
         """A released, stationary stack in the default cube scene.
 
-        Geometry alone can mistake a held or airborne cube for a completed stack.
+        Geometry alone can mistake a held or airborne block for a completed stack.
         Require supporting contacts (red/green and green/table), a centered red
-        cube, low free-joint velocities, and no contact with either robot arm.
+        block, low free-joint velocities, and no contact with either robot arm.
         This reads simulator truth only when evaluating; observations remain visual.
         """
         if self.config.scene:

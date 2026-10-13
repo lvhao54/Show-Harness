@@ -338,14 +338,34 @@ Measured facts (load-bearing; from the model, not assumed):
 - The gripper free gap runs 0.0 m (closed) to 0.1425 m (open). `0` rad is
   CLOSED for both arms; the sign is mirrored. A held 45 mm cube leaves a 45 mm
   gap, so the OPEN/CLOSED threshold is 60 mm, not the old 20 mm.
+- The red object is an upright 2 x 1 x 6 cm (x, y, z) block; green and blue are
+  45 mm cubes. The jaws close along world Y, across the 1 cm face, so a held
+  red block reads ~9 mm, 3 mm above the 6 mm empty-grasp threshold. The grasp
+  window along the approach axis is about ±10 mm of pad offset. On the 20 mm
+  token grid that is one depth, one `MV_FWD` from home; the neighbouring depths
+  close empty. At -15 mm the pads catch an edge and report a hold without
+  lifting. Lateral error up to ~24 mm is pushed into line by the closing jaws.
+  At 26 mm the shoving finger tilts the block ~14° before it is gripped.
 - The horizontal tool's calibrated wrist floor is **-0.250 m** in `arm_origin`.
   The former -0.225 m floor left only about 1 mm of pad/cube overlap and empty
-  grasps. Proprioception reports travel remaining to the wrist floor, not an
-  invented fingertip-to-table distance.
+  grasps on the 45 mm cubes (the 6 cm block is reachable from either floor).
+  Proprioception reports travel remaining to the wrist floor, not an invented
+  fingertip-to-table distance.
 - IK includes a robot-only link4/pedestal collision constraint and a stronger
   orientation task. Without both, transport to the central cube collides with
   the pedestal or tilts the tool. The limit extension uses the tested
   `openarm-control==0.4.0` solver seam.
+- `setpoint_leash_m: 0.004` (both sim configs) is the controller's anti-windup.
+  A move stops once the measured wrist trails its setpoint by more than 4 mm,
+  which happens on contact or at the reach limit (free motion lags ≤ 1.1 mm).
+  The setpoint then re-anchors on the measured pose, and gripper actions
+  re-anchor first. Without it, each blocked `MV_DOWN` wound the setpoint deeper.
+  A held red block slid ~33 mm up through the pads, and on `RELEASE` the
+  rotating fingers struck the green cube's top edge and toppled the stack.
+  Runaway lateral commands also wound the target ~1.5 m past reach until the
+  IK flipped and the wrist dropped below the floor. The real-rig config does
+  not set it: the lag is read right after each command, which assumes a
+  blocking `update_desired_ee_pose` like the simulator's.
 - Zero-shot re-observes after every action; three coarse open-loop moves could
   overshoot the small cubes. A stage timeout fails the episode instead of
   advancing from an unfinished GRASP to LIFT.
@@ -369,8 +389,11 @@ Validate mechanics without a model before spending on a rollout:
 ```
 
 The physics regression uses fixed tokens (not a VLM): it reproduces the old empty
-close, checks the corrected grasp/lift, then transports, releases and retreats
-from a stable red-on-green stack without elbow/pedestal contact. It establishes
+close on a 45 mm cube, checks the corrected grasp/lift of the red block and a
+cube, then transports, releases and retreats from a stable red-on-green stack
+without elbow/pedestal contact. It also presses the held block three times into
+the green cube before releasing: the stack stands with the leash and topples
+without it. It establishes
 that the control path can solve the task; it is not an autonomous policy score.
 
 ### Zero-shot validation note (2026-10-10)
@@ -400,6 +423,49 @@ zero-shot path too, not only by the fine-tuned entry point.
 
 Both fixes this validation surfaced are in the tree: the gateway 499 retry class
 (`core/vlm/vlm_client.py`) and the zero-shot scene-truth record (`scripts/run_real.py`).
+
+### Zero-shot red-block stacking (2026-10-13)
+
+The red cube became an upright block, first 1 x 2 x 6 cm (x, y, z), now 2 x 1 x 6 cm. Same
+gateway backend and settings as above (`gpt-6.1-sol`, medium reasoning, 65 steps); success
+is the independent `red_on_green` check. Rounds 1-4 used the 1 x 2 x 6 block:
+
+| round | change | stacked |
+| --- | --- | --- |
+| 1 | block only | 0/3 |
+| 2 | + setpoint leash, driven-arm name, lateral proprioception, placement rules | 1/3 |
+| 3 | + stage-aware placement, wrist-view centering before GRASP | 2/5 |
+| 4 | centering relaxed to the middle third of the wrist image | **5/5** (28-34 steps) |
+
+What each failure was:
+
+- **Round 1, wrong arm.** Once lifted, the block is hidden behind the wrist in the 256 px
+  AgentView, and the prompt never said which arm was driven. The model judged the
+  block "left of green" and drove right until it left the table. The prompt now names
+  the driven arm and its image side. Proprioception reports the finger gap's offset
+  from the robot centre line, which is AgentView's vertical centre line.
+- **Round 1, release topple.** Pressing after contact wound up the setpoint. The block
+  slid through the pads, and the opening fingers struck green (see
+  `setpoint_leash_m`). The blocked-descent hint used to say "re-align horizontally" even
+  while holding. Now it says stop, finish the stage, or lift before re-aligning.
+- **Round 2, re-grasp.** The model released inside PLACE although the plan has a separate
+  RELEASE stage, then re-grasped the block. The supported-object rule now finishes the
+  current stage: DONE in PLACE, RELEASE in RELEASE.
+- **Round 2, slip in transport.** A grasp 26 mm off-centre lets one finger shove the block
+  first, so it is gripped tilted and works loose. Grasps within about 24 mm hold.
+- **Round 3, centering dither.** The block sits between two wrist positions on the 2 cm
+  grid, and "exactly centred" made the model alternate MV_LEFT/MV_RIGHT until the stage
+  cap. The middle third of the wrist image is about +-16 mm.
+
+All round-4 runs start from the same keyframe, and the model's choices barely vary
+(the grasp phase is the same nine tokens each time). Read 5/5 as the failure modes being
+fixed for this layout, not as a success rate over varied object positions.
+
+The 2 x 1 x 6 block (jaws now across its 1 cm face) then stacked **5/5** (26-32 steps) with
+no further change. One pass was lucky: the model ended LIFT after a single 4 cm step,
+leaving the block's bottom ~6 mm below green's top. Carried sideways, the block pushed the
+green cube 6 cm before the model placed it on top. The other four lifted 8-12 cm and carried
+clear.
 
 The released `_sim` adapter was trained on other simulators, not OpenArm. The
 local validated experiments that emitted only MV_DOWN are failed cross-domain

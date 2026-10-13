@@ -19,8 +19,8 @@ hardware: openarm
 controller_prompt: openarm
 
 # ----- Task -----------------------------------------------------------------
-task: "Pick up the red cube and place it on the green cube"
-# task: "Pick up the red cube and place it on the table"
+task: "Pick up the red block and place it on the green cube"
+# task: "Pick up the red block and place it on the table"
 # With `scene: insert_flower` (needs the one-time VLABench asset fetch):
 # task: "Insert the roses into the vase"
 
@@ -69,7 +69,7 @@ scene: null
 
 # Independent physics check after the final DONE; never shown to the policy.
 # Change this together with task/scene when running a different task.
-#   red_on_green    -- released red cube stably supported by green (default task)
+#   red_on_green    -- released red block stably supported by green (default task)
 #   none            -- VLM-only completion, for tasks without a predicate
 #   cubes_on_table  -- default scene: all three cubes still resting on the tabletop
 #   flowers_in_vase -- insert_flower: every rose tip at the vase mouth
@@ -143,6 +143,12 @@ gripper_min_settle_s: 0.0
 # This floor is calibrated for the fixed horizontal orientation, not pitched tools.
 enable_z_floor: true
 z_floor_m: -0.250
+# Anti-windup: stop a move once the measured wrist trails its setpoint by more than this
+# (contact, or the reach limit) and hold the measured pose, also before gripper actions.
+# Free-motion tracking lags <= 1.1 mm here. Without it, each blocked MV_DOWN wound the
+# setpoint deeper: a held block slid up through the pads, and on RELEASE the stored
+# press snapped the wrist down and the opening fingers struck the support.
+setpoint_leash_m: 0.004
 
 # ----- Models ---------------------------------------------------------------
 vlm:

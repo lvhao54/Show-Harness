@@ -162,6 +162,7 @@ class RealAtomicController:
         smooth_plugin: Any = None,
         rotation_plugin: Any = None,
         motion_frame: str = "base",
+        setpoint_leash_m: Optional[float] = None,
         verbose: bool = True,
     ) -> None:
         """
@@ -213,6 +214,16 @@ class RealAtomicController:
             ensure_controller: Optional recovery hook, run (then the command retried once)
                 when a setpoint command raises an error the subclass recognizes as
                 recoverable via :meth:`_is_recoverable_command_error`.
+            setpoint_leash_m: Optional anti-windup bound (meters). When set, a move stops
+                advancing once the measured EEF trails the commanded setpoint by more
+                than this on any axis -- the arm is against something, or at its reach
+                limit -- and the target re-anchors on the measured pose instead of
+                integrating further. Gripper actions also re-anchor first, so opening
+                never releases a press stored in the setpoint. The lag is read right
+                after each command, so this suits robots whose ``update_desired_ee_pose``
+                returns once the arm has tracked (the OpenArm simulator), and must exceed
+                that free-motion tracking error, or holds creep. None -> the setpoint
+                integrates every commanded step regardless of tracking.
             verbose: Print a one-line summary per command.
         """
         self.robot = robot
@@ -237,6 +248,11 @@ class RealAtomicController:
         self.gripper_poll_dt_s = max(0.0, float(gripper_poll_dt_s))
         self.z_floor_m: Optional[float] = None if z_floor_m is None else float(z_floor_m)
         self.capture_z_floor_on_sync = bool(capture_z_floor_on_sync)
+        self.setpoint_leash_m: Optional[float] = (
+            None if setpoint_leash_m is None else max(0.0, float(setpoint_leash_m))
+        )
+        # Largest measured lag (m) that stopped the last move under the leash, else None.
+        self._leash_stop_m: Optional[float] = None
         # Optional recovery hook: called to restore the robot-side controller when a
         # setpoint command fails with an error the subclass recognizes as recoverable
         # (so the rollout/teleop self-heals instead of crashing). Wired to
@@ -674,8 +690,15 @@ class RealAtomicController:
             realign_note = "realign to neutral before lift"
             note = f"{floor_note}; {realign_note}" if floor_note else realign_note
 
+        self._leash_stop_m = None
         self._drive_to_target(start_pos, start_euler, continuous=continuous)
         post_pose = np.asarray(self.robot.get_ee_pose(), dtype=float)
+        if self._leash_stop_m is not None:
+            leash_note = (
+                f"setpoint leash: stopped at {self._leash_stop_m * 1000:.1f} mm lag "
+                "(contact or reach limit)"
+            )
+            note = f"{note}; {leash_note}" if note else leash_note
 
         if self.verbose:
             msg = (
@@ -695,6 +718,10 @@ class RealAtomicController:
     def _apply_gripper(self, close: bool, pre_pose: np.ndarray, token: str) -> AtomicStepResult:
         changed = self.gripper_closed is None or bool(self.gripper_closed) != close
         settled_width: Optional[float] = None
+        if changed and self.setpoint_leash_m is not None and self._reanchor_target():
+            # Hold where the arm IS before the fingers act: a residual press in the
+            # setpoint would otherwise spring the wrist into the object as it lets go.
+            self._command_setpoint()
         if changed:
             pre_width = float(self.robot.get_gripper_position()[0])
             # Robot interface contract: control_gripper(True=close, False=open).
@@ -873,6 +900,10 @@ class RealAtomicController:
                 euler = start_euler + deuler * frac
                 self._update_desired_ee_pose(np.concatenate([pos, euler_to_quat(euler)]))
                 last_frac = frac
+                if self._leash_tripped(pos):
+                    # Stop the ramp here; settle on the measured pose (end of motion).
+                    v1 = 0.0
+                    break
             if dt_s > 0.0:
                 time.sleep(dt_s)
 
@@ -893,6 +924,39 @@ class RealAtomicController:
                 self._update_desired_ee_pose(pose)
             if self.settle_dt_s > 0.0:
                 time.sleep(self.settle_dt_s)
+        # Judged once settled: mid-settle an unramped step still trails its target freely.
+        if re_command and pose is not None and self._leash_tripped(pose[:3]):
+            self._update_desired_ee_pose(self.target_pose)
+
+    def _leash_tripped(self, commanded_pos: np.ndarray) -> bool:
+        """Under the setpoint leash, re-anchor when the arm trails ``commanded_pos``.
+
+        A trailing arm is pressing into something or out of reach; integrating further
+        only stores force in the setpoint (see ``setpoint_leash_m``). Returns True when
+        the target was re-anchored on the measured pose.
+        """
+        if self.setpoint_leash_m is None:
+            return False
+        measured = np.asarray(self.robot.get_ee_pose(), dtype=float)[:3]
+        lag = float(np.max(np.abs(np.asarray(commanded_pos, dtype=float)[:3] - measured)))
+        if lag <= self.setpoint_leash_m:
+            return False
+        self._leash_stop_m = max(lag, self._leash_stop_m or 0.0)
+        self._reanchor_target()
+        return True
+
+    def _reanchor_target(self) -> bool:
+        """Move the position target onto the measured EEF (never below the Z floor).
+
+        Returns True when the target changed.
+        """
+        target = np.asarray(self.robot.get_ee_pose(), dtype=float)[:3].copy()
+        if self.z_floor_m is not None:
+            target[2] = max(float(target[2]), self.z_floor_m)
+        if np.allclose(target, self._target_pos, atol=1e-6):
+            return False
+        self._target_pos = target
+        return True
 
     def _update_desired_ee_pose(self, pose: np.ndarray) -> None:
         """Command one setpoint, self-healing if the robot-side controller was lost.

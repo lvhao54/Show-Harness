@@ -1121,6 +1121,11 @@ def make_runner(
     # depth mapping is inverted vs the Franka convention baked into controller.txt.
     # Driven by the hardware `is_ego` flag; a non-ego rig leaves the prompt untouched.
     controller_prompt = EgoPlugin(bool(cfg.get("is_ego", False))).apply(controller_prompt)
+    if cfg.get("hardware") == "openarm":
+        from core.openarm.prompting import apply_arm_side
+
+        # The OpenArm prompt names the driven arm, so the model knows which gripper is its own.
+        controller_prompt = apply_arm_side(controller_prompt, cfg.get("arm_side", "right"))
     # Action-type ablation (action_ablation_mode: off|bare|letters|letters_blind):
     # the no-explanation settings replace the DIRECTION section at template level;
     # the letters modes also swap the answer alphabet to opaque ACT_* symbols

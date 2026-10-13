@@ -393,7 +393,7 @@ def _default_task(scene: str | None) -> str:
     """
     if scene == "insert_flower":
         return "Insert the roses into the vase"
-    return "Pick up the red cube and place it on the table"
+    return "Pick up the red block and place it on the table"
 
 
 if __name__ == "__main__":
