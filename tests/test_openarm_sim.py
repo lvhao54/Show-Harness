@@ -83,18 +83,41 @@ class OpenArmConfigTests(unittest.TestCase):
         self.assertLess(float(fine["z_floor_m"]), -0.240)
         self.assertGreater(float(fine["z_floor_m"]), -0.265)
 
-    def test_default_wrist_transform_is_configured_for_the_selected_arm(self) -> None:
-        """The wrist mount is mirrored, so rotation/flip are per-arm; they must be set."""
+    def test_wrist_transform_is_configured_per_arm(self) -> None:
+        """The wrist mount is mirrored, so rotation/flip are per-arm; both must be set."""
+        from core.launch import openarm_wrist_transform
+
         cfg = load_yaml(CONFIG)
-        expected = {
-            "right": (270, "both"),
-            "left": (90, "both"),
-        }[cfg["arm_side"]]
-        self.assertEqual(
-            int(cfg["wrist_rotation_degrees"]), expected[0],
-            "wrist rotation must match the selected arm (see configs/robot_openarm.yaml)",
+        for side, expected in (("right", (270, "both")), ("left", (90, "both"))):
+            with self.subTest(side=side):
+                rotation, flip = openarm_wrist_transform(cfg, side)
+                self.assertEqual((rotation, flip.lower()), expected)
+
+    def test_driving_an_arm_without_its_own_wrist_transform_is_refused(self) -> None:
+        """Flat wrist keys describe the config's arm only; --arm must not reuse them."""
+        from types import SimpleNamespace
+
+        from core.launch import openarm_session_config, openarm_wrist_transform
+
+        cfg = {"arm_side": "right", "wrist_rotation_degrees": 270, "wrist_flip": "both"}
+        self.assertEqual(openarm_wrist_transform(cfg, "right"), (270, "both"))
+        with self.assertRaisesRegex(ValueError, "wrist_by_arm.left"):
+            openarm_wrist_transform(cfg, "left")
+        with self.assertRaisesRegex(ValueError, "wrist_by_arm.left"):
+            openarm_session_config(cfg, SimpleNamespace(scene=None, arm="left"))
+
+    def test_arm_override_reaches_the_session_with_that_arms_transform(self) -> None:
+        from types import SimpleNamespace
+
+        from core.launch import openarm_session_config
+
+        session_cfg = openarm_session_config(
+            load_yaml(CONFIG), SimpleNamespace(scene=None, arm="left")
         )
-        self.assertEqual(str(cfg["wrist_flip"]).lower(), expected[1])
+        self.assertEqual(session_cfg.arm_side, "left")
+        self.assertEqual(
+            (session_cfg.wrist_rotation_degrees, session_cfg.wrist_flip), (90, "both")
+        )
 
 
 class OpenArmSceneTests(unittest.TestCase):
@@ -160,6 +183,32 @@ class OpenArmSceneTests(unittest.TestCase):
         message = str(ctx.exception)
         self.assertIn("mujoco", message)
         self.assertIn("--openarm", message)
+
+    def test_scene_helpers_import_without_the_simulator_wheels(self) -> None:
+        """``core.openarm.sim`` must import on a base venv, or the hint above is dead code."""
+        import subprocess
+        import sys
+
+        probe = (
+            "import sys\n"
+            "for name in ('mujoco', 'openarm_control', 'openarm_mujoco'):\n"
+            "    sys.modules[name] = None  # behave as if not installed\n"
+            "from core.openarm.sim import OpenArmDependencyError, import_openarm_backend\n"
+            "try:\n"
+            "    import_openarm_backend()\n"
+            "except OpenArmDependencyError as exc:\n"
+            "    print('HINT', exc)\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            cwd=Path(__file__).resolve().parents[1],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("HINT", result.stdout)
+        self.assertIn("setup.sh base --openarm", result.stdout)
 
 
 class OpenArmZeroShotWiringTests(unittest.TestCase):
@@ -234,15 +283,16 @@ class OpenArmZeroShotWiringTests(unittest.TestCase):
         The zero-shot OpenArm prompt describes its execution-time FWD/BACK
         exchange explicitly; it does not treat the wrist side view as overhead.
         """
+        from core.launch import openarm_wrist_transform
+
         zero = load_yaml(self.ZERO_CONFIG)
         fine = load_yaml(CONFIG)
-        self.assertEqual(int(fine["wrist_rotation_degrees"]), 270)
-        self.assertEqual(str(fine["wrist_flip"]).lower(), "both")
-        # Zero-shot: native orientation, no flip.
+        self.assertEqual(openarm_wrist_transform(fine, "right"), (270, "both"))
+        # Zero-shot: native orientation, no flip -- for either arm.
         self.assertEqual(str(zero.get("agentview_flip", "none")).lower(), "none")
-        self.assertEqual(str(zero.get("wrist_flip", "none")).lower(), "none")
         self.assertEqual(int(zero.get("agentview_rotation_degrees", 0)), 0)
-        self.assertEqual(int(zero.get("wrist_rotation_degrees", 0)), 0)
+        for side in ("right", "left"):
+            self.assertEqual(openarm_wrist_transform(zero, side), (0, "none"), side)
         # ...compensated in the token->motion mapping.
         from core.launch import execution_token_swap_pairs
         from core.config import resolve_vlm_config
@@ -318,6 +368,59 @@ class OpenArmZeroShotWiringTests(unittest.TestCase):
         self.assertEqual(controller.gripper_min_settle_s, float(cfg["gripper_min_settle_s"]))
         self.assertEqual(controller.grasp_open_width_m, float(cfg["open_width_m"]))
         self.assertAlmostEqual(controller.step_m, float(cfg["step_m"]))
+        self.assertAlmostEqual(controller.grasp_min_width_m, float(cfg["empty_width_m"]))
+
+    def test_recovery_off_also_turns_off_the_empty_grasp_reopen(self) -> None:
+        """plugins.recovery gates the controller's auto-reopen, as on Franka and Piper."""
+        if not _sim_available():
+            self.skipTest("OpenArm wheels not installed")
+        import argparse
+
+        from core.config import load_yaml as _load
+        from core.launch import make_controller, make_session, resolve_primitives_path
+
+        cfg = _load(self.ZERO_CONFIG)
+        cfg["plugins"] = {**cfg["plugins"], "recovery": False}
+        args = argparse.Namespace(
+            scene=None, arm=None, primitives_config=None, mock_robot=False,
+            no_z_floor=False, z_floor_m=None, z_floor=False, z_floor_name=None,
+            mock_cameras=False,
+        )
+        session = make_session(cfg, args, "openarm")
+        session.connect()
+        self.addCleanup(session.close)
+        primitives = _load(resolve_primitives_path(args, cfg, "openarm"))
+        controller = make_controller(cfg, primitives, session, args, "openarm")
+        self.assertIsNone(controller.grasp_min_width_m)
+
+    def test_franka_defaults_do_not_leak_into_the_openarm_config(self) -> None:
+        """No Franka table height as a floor or table reference; step_m is the step."""
+        import argparse
+
+        from core.launch import TABLE_CONTACT_Z_M, build_config, table_height_m
+
+        args = argparse.Namespace(
+            vlm_url=None, model=None, vlm_backend=None, fine_step_m=None
+        )
+        robot_cfg = load_yaml(self.ZERO_CONFIG)
+        robot_cfg.pop("z_floor_m")
+        robot_cfg["step_m"] = 0.03
+        cfg = build_config(args, robot_cfg)
+        # A config without a floor stays floorless, so startup demands a measurement.
+        self.assertIsNone(cfg["z_floor_m"])
+        self.assertAlmostEqual(cfg["fine_step_m"], 0.03)
+        args.fine_step_m = 0.01
+        self.assertAlmostEqual(build_config(args, robot_cfg)["fine_step_m"], 0.01)
+        # Without a floor, OpenArm has no table reference; Franka keeps its constant.
+        self.assertIsNone(table_height_m({"hardware": "openarm"}, None))
+        self.assertAlmostEqual(table_height_m({"hardware": "openarm"}, -0.25), -0.25)
+        self.assertAlmostEqual(table_height_m({"hardware": "franka"}, None), TABLE_CONTACT_Z_M)
+
+    def test_default_task_follows_the_scene_that_was_built(self) -> None:
+        from scripts.run_openarm_mvtoken import _default_task
+
+        self.assertIn("vase", _default_task("insert_flower"))
+        self.assertIn("cube", _default_task(None))
 
 
 class OpenArmFrameTests(unittest.TestCase):
@@ -431,6 +534,30 @@ class OpenArmSimTests(unittest.TestCase):
             self.assertGreater(float(obs[key].std()), 1.0, f"{key} looks blank")
         self.assertEqual(len(obs["ee_pose"]), 7)
         self.assertGreaterEqual(float(obs["gripper_width"]), 0.0)
+
+    def test_rollout_and_live_view_threads_can_both_capture(self) -> None:
+        """The EGL context is thread-bound; captures from two threads must both work."""
+        import threading
+
+        from core.openarm.openarm_session import OpenArmSession, OpenArmSessionConfig
+
+        session = OpenArmSession(OpenArmSessionConfig(scene=None, observation_resolution=64))
+        self.addCleanup(session.close)
+        session.connect()
+        # Only the views the policy reads are rendered.
+        self.assertEqual(
+            set(session.backend.cameras), {"camera_head", "camera_wrist_right"}
+        )
+        shown: list = []
+        live = threading.Thread(target=lambda: shown.append(session.get_camera_frames()))
+        live.start()
+        live.join(60)
+        self.assertIsNotNone(shown[0], "the live-view thread could not capture")
+        for _ in range(3):
+            obs = session.get_observation()
+            self.assertGreater(float(obs["agentview"].std()), 1.0)
+        session.close()
+        self.assertIsNone(session.get_camera_frames())
 
     def test_flower_predicate_is_reachable(self) -> None:
         """`flowers_in_vase` must be satisfiable, or it is not a success condition.

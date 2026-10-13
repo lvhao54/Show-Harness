@@ -299,6 +299,8 @@ def build_config(args: argparse.Namespace, robot_cfg: dict[str, Any]) -> dict[st
         if value is not None:
             overrides[cfg_name] = value
     cfg = deep_merge(cfg, overrides)
+    if str(robot_cfg.get("hardware", "")).strip().lower() == "openarm":
+        _openarm_config_defaults(cfg, robot_cfg, args)
     if "task" not in cfg or not str(cfg["task"]).strip():
         raise ValueError("No task defined; set `task` in robot_franka.yaml or pass --task.")
 
@@ -322,6 +324,24 @@ def build_config(args: argparse.Namespace, robot_cfg: dict[str, Any]) -> dict[st
     cfg["vlm"] = vlm
     cfg["vlm_backend"] = vlm["backend"]
     return cfg
+
+
+def _openarm_config_defaults(
+    cfg: dict[str, Any], robot_cfg: dict[str, Any], args: argparse.Namespace
+) -> None:
+    """Undo the Franka-specific DEFAULTS that have no meaning on the OpenArm rig, in place.
+
+    * ``z_floor_m``: DEFAULTS injects the Franka base-frame table height (0.154 m), which
+      sits ~40 cm above the OpenArm home pose in ``arm_origin``. A config (or site layer)
+      that names no floor must stay "no floor", so the startup checks demand a measurement
+      instead of silently forbidding all descent.
+    * ``fine_step_m``: the OpenArm configs own the per-token step as ``step_m`` (shared with
+      the fine-tuned entry point), so it is the harness step unless ``--fine-m`` overrides it.
+    """
+    if "z_floor_m" not in robot_cfg:
+        cfg["z_floor_m"] = None
+    if robot_cfg.get("step_m") is not None and getattr(args, "fine_step_m", None) is None:
+        cfg["fine_step_m"] = float(robot_cfg["step_m"])
 
 
 
@@ -424,6 +444,30 @@ def make_session(cfg: dict[str, Any], args: argparse.Namespace, hardware: str) -
     return FrankaSession(session_config(cfg, args))
 
 
+def openarm_wrist_transform(cfg: dict[str, Any], side: str) -> tuple[int, str]:
+    """``(rotation_degrees, flip)`` for the driven arm's wrist camera.
+
+    The two wrist mounts are mirror images, so one arm's transform is wrong for the other
+    (the fine-tuned contract is right 270/both but left 90/both). ``wrist_by_arm.<side>``
+    names a side explicitly; otherwise the flat ``wrist_rotation_degrees`` / ``wrist_flip``
+    keys describe the config's own ``arm_side`` only. Driving the other arm (``--arm``)
+    without a ``wrist_by_arm`` entry for it is refused rather than handing the policy a
+    rotated or mirrored view.
+    """
+    per_arm = (cfg.get("wrist_by_arm") or {}).get(side)
+    if per_arm is not None:
+        return int(per_arm.get("rotation_degrees", 0)), str(per_arm.get("flip", "none"))
+    configured = str(cfg.get("arm_side", "right")).strip().lower()
+    if side != configured:
+        raise ValueError(
+            f"OpenArm: the wrist camera transform in this config was set for the "
+            f"{configured} arm, and the mounts are mirrored. Add `wrist_by_arm.{side}` "
+            "(rotation_degrees / flip) to the robot config -- check it with --dump-views -- "
+            f"before driving the {side} arm."
+        )
+    return int(cfg.get("wrist_rotation_degrees", 0)), str(cfg.get("wrist_flip", "none"))
+
+
 def openarm_session_config(cfg: dict[str, Any], args: argparse.Namespace) -> Any:
     """The OpenArm simulator session config from the resolved robot config.
 
@@ -433,9 +477,11 @@ def openarm_session_config(cfg: dict[str, Any], args: argparse.Namespace) -> Any
     """
     from core.openarm.openarm_session import OpenArmSessionConfig
 
+    arm_side = str(getattr(args, "arm", None) or cfg.get("arm_side", "right"))
+    wrist_rotation, wrist_flip = openarm_wrist_transform(cfg, arm_side)
     return OpenArmSessionConfig(
         scene=args.scene if getattr(args, "scene", None) is not None else cfg.get("scene"),
-        arm_side=str(getattr(args, "arm", None) or cfg.get("arm_side", "right")),
+        arm_side=arm_side,
         control_hz=float(cfg.get("control_hz", 60.0)),
         sim_ticks_per_command=int(cfg.get("sim_ticks_per_command", 6)),
         gripper_ticks=int(cfg.get("gripper_ticks", 60)),
@@ -444,9 +490,9 @@ def openarm_session_config(cfg: dict[str, Any], args: argparse.Namespace) -> Any
         # The zero-shot planner wants glyph-level detail; reuse the rig's hd key.
         hd_resolution=int(cfg["hd_res"]) if cfg.get("hd_res") else None,
         agentview_rotation_degrees=int(cfg.get("agentview_rotation_degrees", 0)),
-        wrist_rotation_degrees=int(cfg.get("wrist_rotation_degrees", 0)),
+        wrist_rotation_degrees=wrist_rotation,
         agentview_flip=str(cfg.get("agentview_flip", "none")),
-        wrist_flip=str(cfg.get("wrist_flip", "none")),
+        wrist_flip=wrist_flip,
         agentview_crop_aspect=cfg.get("agentview_crop_aspect"),
         wrist_crop_aspect=cfg.get("wrist_crop_aspect"),
         success_check=str(cfg.get("success_check", "none")),
@@ -476,26 +522,64 @@ def openarm_real_session_config(cfg: dict[str, Any], args: argparse.Namespace) -
     # The top-level control_hz is the shared rig rate (the simulator reads it too); the
     # driver block may override it for a cell that needs a different IK rate.
     driver.setdefault("control_hz", float(cfg.get("control_hz", 60.0)))
+    arm_side = str(getattr(args, "arm", None) or cfg.get("arm_side", "right"))
+    wrist_rotation, wrist_flip = openarm_wrist_transform(cfg, arm_side)
     return OpenArmRealSessionConfig(
-        arm_side=str(getattr(args, "arm", None) or cfg.get("arm_side", "right")),
+        arm_side=arm_side,
         driver=driver,
         cameras=cameras,
         observation_resolution=int(cfg.get("observation_resolution", 256)),
         # The zero-shot planner wants glyph-level detail; reuse the rig's hd key.
         hd_resolution=int(cfg["hd_res"]) if cfg.get("hd_res") else None,
         agentview_rotation_degrees=int(cfg.get("agentview_rotation_degrees", 0)),
-        wrist_rotation_degrees=int(cfg.get("wrist_rotation_degrees", 0)),
+        wrist_rotation_degrees=wrist_rotation,
         agentview_flip=str(cfg.get("agentview_flip", "none")),
-        wrist_flip=str(cfg.get("wrist_flip", "none")),
+        wrist_flip=wrist_flip,
         agentview_crop_aspect=cfg.get("agentview_crop_aspect"),
         wrist_crop_aspect=cfg.get("wrist_crop_aspect"),
     )
 
 
+def openarm_real_preflight(cfg: dict[str, Any], args: argparse.Namespace) -> None:
+    """Refuse an OpenArm hardware run before any device opens.
+
+    Every entry point that can build the real session goes through here (via
+    :func:`make_openarm_real_session`), so none of them can enable the arms on a run the
+    operator believed was a dry run, or start without a measured Z floor:
+
+    * ``--mock-robot`` / ``--mock-cameras`` belong to the Franka path; nothing here honours
+      them, so accepting them would enable the physical arms.
+    * The floor resolves exactly as the controller will resolve it (``--no-z-floor`` >
+      ``--z-floor-m`` > ``--z-floor`` > config). "Capture at start" is refused: it would lock
+      the floor at the start pose and forbid all descent.
+    """
+    if getattr(args, "mock_robot", False) or getattr(args, "mock_cameras", False):
+        raise ValueError(
+            "--mock-robot / --mock-cameras are not available on the OpenArm real "
+            "backend; this run would enable the physical arms. Use "
+            "configs/robot_openarm_zero.yaml for an offline dry run."
+        )
+    _, capture = resolve_z_floor(cfg, args)
+    if capture:
+        side = str(getattr(args, "arm", None) or cfg.get("arm_side", "right"))
+        raise ValueError(
+            "OpenArm real: the Z floor is enabled but no measured height is set. "
+            "Rest the driven gripper on the tabletop, then run:\n"
+            f"  python scripts/openarm/capture_z_floor.py --arm {side} --write\n"
+            "or pass --z-floor-m <height> for this run, or --no-z-floor to remove the "
+            "descent limit (not recommended)."
+        )
+
+
 def make_openarm_real_session(cfg: dict[str, Any], args: argparse.Namespace) -> Any:
-    """Build the CAN + USB-camera OpenArm session (real hardware, same contract)."""
+    """Build the CAN + USB-camera OpenArm session (real hardware, same contract).
+
+    Runs :func:`openarm_real_preflight` first: construction opens nothing, but the next
+    call on this session enables both arms.
+    """
     from core.openarm.openarm_real_session import OpenArmRealSession
 
+    openarm_real_preflight(cfg, args)
     return OpenArmRealSession(openarm_real_session_config(cfg, args))
 
 
@@ -599,12 +683,14 @@ def resolve_z_floor(cfg: dict[str, Any], args: argparse.Namespace) -> tuple[Any,
     ``z_floor_m`` is an explicit height (meters) or ``None``; when ``None`` and
     ``capture_at_start`` is True the controller locks the floor at the robot's
     current height on the first sync. When both are falsy the floor is disabled.
+    A parser that lacks one of the floor flags (the OpenArm sim entry point has no
+    ``--z-floor``) reads as "flag not given".
     """
-    if args.no_z_floor:
+    if getattr(args, "no_z_floor", False):
         return None, False
-    if args.z_floor_m is not None:
+    if getattr(args, "z_floor_m", None) is not None:
         return float(args.z_floor_m), False
-    if args.z_floor:  # operator asked to re-capture at the start height
+    if getattr(args, "z_floor", False):  # operator asked to re-capture at the start height
         return None, True
     if not bool(cfg.get("enable_z_floor", False)):
         return None, False
@@ -735,7 +821,9 @@ def make_controller(
         # settle timings (4 steps, 1.2 s of sleeping per gripper command) on a simulator
         # that steps physics instead. Drop exactly those keys so the factory's OpenArm
         # values -- which come from this rig's own config -- are what runs, and keep the
-        # plugin mounts and the values the harness resolved from the config/CLI.
+        # plugin mounts and the values the harness resolved from the config/CLI. The grasp
+        # widths stay: they are read from this config's own keys and carry the
+        # ``plugins.recovery`` gate (None when recovery is off).
         openarm_kwargs = {
             key: value
             for key, value in common_kwargs.items()
@@ -745,8 +833,6 @@ def make_controller(
                 "settle_dt_s",
                 "gripper_settle_s",
                 "gripper_min_settle_s",
-                "grasp_min_width_m",
-                "grasp_open_width_m",
                 "capture_z_floor_on_sync",
             }
         }
@@ -909,9 +995,18 @@ def mem_text_len(cfg: dict[str, Any]) -> int:
 
 
 
-def table_height_m(cfg: dict[str, Any], z_floor_m: Any) -> float:
-    """Table-contact reference height (m): the Z-floor when set, else the calibrated constant."""
-    return float(z_floor_m) if z_floor_m is not None else TABLE_CONTACT_Z_M
+def table_height_m(cfg: dict[str, Any], z_floor_m: Any) -> Optional[float]:
+    """Table-contact reference height (m): the Z-floor when set, else the calibrated constant.
+
+    The constant is the Franka base-frame table height. OpenArm reports in ``arm_origin``,
+    where it means nothing, so a floorless OpenArm run has no reference (None): the
+    height-dependent prompt line and coarse step are skipped instead of misreporting.
+    """
+    if z_floor_m is not None:
+        return float(z_floor_m)
+    if str(cfg.get("hardware", "")).strip().lower() == "openarm":
+        return None
+    return TABLE_CONTACT_Z_M
 
 
 
@@ -1046,9 +1141,9 @@ def make_runner(
         open_width_m=recovery_open_width_m(cfg),
     )
     # Controller plugins. Proprioception needs the table height (the Z-floor when set, else
-    # the calibrated table-contact constant); the Z-floor SAFETY limit is enforced inside
-    # the controller regardless of this tool.
-    table_height_m = controller.z_floor_m if controller.z_floor_m is not None else TABLE_CONTACT_Z_M
+    # the calibrated table-contact constant -- none on OpenArm); the Z-floor SAFETY limit is
+    # enforced inside the controller regardless of this tool.
+    table_ref_m = table_height_m(cfg, controller.z_floor_m)
     # action_chunk (runner-level decision cadence): repeat a move step_num times while the
     # TARGET is far. Shared with the controller agent so the WRIST marker is rendered/parsed
     # whenever this OR variable_step is enabled.
@@ -1114,7 +1209,7 @@ def make_runner(
                 # AFFORD field always names a dot that is actually drawn on the frame.
                 affordance_plugin=affordance_plugin,
                 action_ablation_plugin=action_ablation_plugin,
-                table_height_m=table_height_m,
+                table_height_m=table_ref_m,
             )
         ),
     )

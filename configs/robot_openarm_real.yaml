@@ -56,7 +56,6 @@ plugins:
 gripper_color: ""            # the OpenArm jaws are dark grey in the head camera
 high_above_table_m: 0.08
 coarse_step_m: 0.04
-fine_step_m: 0.02
 up_step_m: 0.04
 action_chunk_step_num: 3
 mem_text_len: 5
@@ -72,7 +71,8 @@ control_hz: 60
 # Commanded step per token, metres. Same value as the simulator: the setpoint is an
 # absolute Cartesian pose and the vendor's filtered position loop tracks it, so step_m IS
 # the commanded displacement. Calibrate the achieved distance before trusting a policy
-# score -- the arm can lag a fast command even when the setpoint is exact.
+# score -- the arm can lag a fast command even when the setpoint is exact. This is also the
+# harness's fine step (`fine_step_m` is derived from it); `--fine-m` overrides it.
 step_m: 0.02
 
 # Setpoint re-command contract per atomic token (RealAtomicController). The hardware arm
@@ -140,9 +140,11 @@ agentview_crop_aspect: 1.3333
 #     --dump-views
 # (this connects and enables the arms to read the pose -- the cell must be clear). The wrist
 # frames are 960x600 (8:5), so the 4:3 crop is a real crop, not a no-op; re-measure before
-# reading anything into a policy score.
-wrist_rotation_degrees: 270
-wrist_flip: both
+# reading anything into a policy score. The mounts are mirrored, so each arm has its own
+# entry (add --arm left to the command above to check the left one).
+wrist_by_arm:
+  right: {rotation_degrees: 270, flip: both}
+  left: {rotation_degrees: 90, flip: both}
 wrist_crop_aspect: 1.3333
 use_wrist_image: true
 

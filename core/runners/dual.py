@@ -180,11 +180,22 @@ class DualEpisodeRunner:
             for step_idx in range(self.max_steps):
                 loop_started = time.monotonic()
 
-                # Per-arm stage step cap: abandon the stage and move on (per side).
+                # Per-arm stage step cap. Later stages depend on this one's completion
+                # (a timed-out GRASP must never authorize LIFT/PLACE with an empty or
+                # open gripper), so a capped stage ends the episode -- the same rule as
+                # the single-arm runner. Only an accepted DONE advances a stage.
                 for side in SIDES:
                     self._apply_stage_cap(self.arms[side], step_idx)
+                capped = {
+                    side: arm.failed_reason
+                    for side, arm in self.arms.items()
+                    if arm.failed_reason
+                }
+                if capped:
+                    end_reason = "; ".join(f"{s}: {r}" for s, r in capped.items())
+                    break
 
-                # Both tracks done (a per-arm DONE last step, or a cap-finish above):
+                # Both tracks done (each arm DONE on its final stage, or had no work):
                 # final visual check of the WHOLE task, then success / replan / fail.
                 # (Not counted in `steps`: no robot motion happens on this iteration.)
                 if all(arm.finished for arm in self.arms.values()):
@@ -641,13 +652,8 @@ class DualEpisodeRunner:
             return
         if step_idx - arm.stage_start_step < self.config.max_subgoal_steps:
             return
-        arm.index += 1
-        arm.stage_start_step = step_idx
-        arm.current_direction = None
-        arm.recent_moves.clear()
-        if arm.index >= len(arm.subgoals):
-            arm.finished = True
-            arm.failed_reason = "subgoal_step_cap_exceeded"
+        arm.finished = True
+        arm.failed_reason = "subgoal_step_cap_exceeded"
 
     def _advance_arm(
         self, side: str, stage_done: bool, recovery: Any, step_idx: int

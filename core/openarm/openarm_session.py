@@ -15,7 +15,12 @@ prompt's ``MV_LEFT``/``MV_RIGHT`` rules are written against.
 
 Both views go through :func:`core.record.images.prepare_view` -- the same
 rotate/crop/letterbox contract every other embodiment uses -- so the frames this session
-hands to the policy are shaped like the ones it was trained on.
+hands to the policy are shaped like the ones it was trained on. Only those two cameras are
+rendered; the idle arm's wrist camera would cost a full render per capture for nothing.
+
+MuJoCo's offscreen (EGL) context belongs to the thread that created it, while the rollout
+and a live-view poller capture from different threads. Every render -- and the renderer's
+teardown -- therefore runs on one dedicated worker thread owned by the session.
 
 Task success
 ------------
@@ -40,7 +45,7 @@ emits ``DONE`` as its own terminal signal and never consults an environment pred
 from __future__ import annotations
 
 import io
-import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -97,13 +102,16 @@ class OpenArmSession:
         self.robot: Optional[OpenArmSimRobot] = None
         self._connected = False
         self._origin_z = 0.0
-        # Serializes captures between the rollout and a live-display poller.
-        self._camera_lock = threading.RLock()
+        # The one thread that creates, uses and closes the GL renderer (see module doc).
+        self._render_thread: Optional[ThreadPoolExecutor] = None
 
     # -- lifecycle ---------------------------------------------------------
     def connect(self) -> "OpenArmSession":
         """Build the MuJoCo world, start it holding, and wrap the driven arm."""
         self._success_check_name()  # Reject typos before allocating the simulator.
+        self._render_thread = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="openarm-render"
+        )
         self._connect_openarm()
         self._connected = True
         return self
@@ -120,6 +128,7 @@ class OpenArmSession:
         self.backend = make_openarm_backend(
             scene=cfg.scene or None,
             control_hz=float(cfg.control_hz),
+            cameras=(self.agentview_camera(), self.wrist_camera()),
         )
         # arm_origin is the frame everything is reported in; its world Z is the offset
         # between world coordinates (used by the scene predicates) and API coordinates.
@@ -141,9 +150,19 @@ class OpenArmSession:
         self._log(f"[{self.LOG_TAG}]   cameras={list(self.backend.cameras)}")
 
     def close(self) -> None:
+        self._connected = False
+        render_thread, self._render_thread = self._render_thread, None
+        if render_thread is not None:
+            try:
+                if self.backend is not None:
+                    # GL teardown belongs on the thread that owns the context.
+                    render_thread.submit(self.backend.close_camera).result()
+            except Exception as exc:  # noqa: BLE001 - teardown must never mask a result
+                self._log(f"[{self.LOG_TAG}] renderer close error: {exc}")
+            finally:
+                render_thread.shutdown(wait=True)
         if self.robot is not None:
             self.robot.close()
-        self._connected = False
 
     def __enter__(self) -> "OpenArmSession":
         return self.connect()
@@ -162,10 +181,10 @@ class OpenArmSession:
 
     def _render_all(self) -> dict[str, np.ndarray]:
         """One frozen-state capture, decoded to HWC uint8 RGB."""
-        if not self._connected or self.backend is None:
+        render_thread = self._render_thread
+        if not self._connected or self.backend is None or render_thread is None:
             raise RuntimeError("OpenArmSession.get_observation called before connect()")
-        with self._camera_lock:
-            frames = self.backend.capture()
+        frames = render_thread.submit(self.backend.capture).result()
         out: dict[str, np.ndarray] = {}
         for name, payload in frames.items():
             out[name] = np.asarray(Image.open(io.BytesIO(payload)).convert("RGB"))

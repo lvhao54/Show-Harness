@@ -127,13 +127,13 @@ def check_config(r: Report, cfg_path: str):
 
 def _check_openarm(r, cfg):
     """The OpenArm simulator: wheels, scene assets, and the Z-floor/action-unit pair."""
-    from core.openarm.sim import (
-        import_openarm_backend,
-        is_vlabench_assets_present,
-        OPENARM_SCENES,
-    )
-
     try:
+        from core.openarm.sim import (
+            import_openarm_backend,
+            is_vlabench_assets_present,
+            OPENARM_SCENES,
+        )
+
         import_openarm_backend()
         r.ok("openarm simulator", "mujoco + openarm_control + openarm_mujoco importable")
     except Exception as exc:  # noqa: BLE001

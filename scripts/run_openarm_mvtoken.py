@@ -47,7 +47,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core.config import load_secrets_env, load_yaml
-from core.launch import openarm_backend
+from core.launch import openarm_backend, openarm_wrist_transform
 from core.openarm.openarm_session import OpenArmSession, OpenArmSessionConfig
 from core.record.episode_logger import EpisodeLogger
 from core.runners.mvtoken import MvTokenRunner
@@ -59,6 +59,11 @@ from plugins.config import PluginsConfig
 # Shared sim config/client wiring (no startup calibration -- the atomic controller maps
 # MV_* -> base-frame XYZ directly).
 from core.sim.launch import build_config, make_vlm_client
+
+#: Where rollouts land when the config names no ``log_dir`` (the real config does not).
+DEFAULT_LOG_DIR = "rollouts/openarm"
+#: Step budget when the config names no ``max_steps``.
+DEFAULT_MAX_STEPS = 80
 
 
 def _prompt_path(prompts_dir: Path, version: str) -> Path:
@@ -137,9 +142,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def _session_config(cfg: dict, args: argparse.Namespace) -> OpenArmSessionConfig:
+    arm_side = str(args.arm or cfg.get("arm_side", "right"))
+    wrist_rotation, wrist_flip = openarm_wrist_transform(cfg, arm_side)
     return OpenArmSessionConfig(
         scene=args.scene if args.scene is not None else cfg.get("scene"),
-        arm_side=str(args.arm or cfg.get("arm_side", "right")),
+        arm_side=arm_side,
         control_hz=float(cfg.get("control_hz", 60.0)),
         sim_ticks_per_command=int(cfg.get("sim_ticks_per_command", 6)),
         gripper_ticks=int(cfg.get("gripper_ticks", 60)),
@@ -149,9 +156,9 @@ def _session_config(cfg: dict, args: argparse.Namespace) -> OpenArmSessionConfig
         ),
         hd_resolution=int(cfg["hd_resolution"]) if cfg.get("hd_resolution") else None,
         agentview_rotation_degrees=int(cfg.get("agentview_rotation_degrees", 0)),
-        wrist_rotation_degrees=int(cfg.get("wrist_rotation_degrees", 0)),
+        wrist_rotation_degrees=wrist_rotation,
         agentview_flip=str(cfg.get("agentview_flip", "none")),
-        wrist_flip=str(cfg.get("wrist_flip", "none")),
+        wrist_flip=wrist_flip,
         agentview_crop_aspect=cfg.get("agentview_crop_aspect"),
         wrist_crop_aspect=cfg.get("wrist_crop_aspect"),
         success_check=str(args.success_check or cfg.get("success_check", "none")),
@@ -237,6 +244,10 @@ def main() -> int:
     print(f"Prompt: {prompt_path} (version {args.version})")
 
     backend = openarm_backend(cfg)
+    # Everything the run reads from the config is resolved before connect(): on the real
+    # rig connect() enables both arms, so a config error must not first surface after it.
+    log_root = Path(ROOT) / str(cfg.get("log_dir") or DEFAULT_LOG_DIR)
+    max_steps = int(cfg.get("max_steps") or DEFAULT_MAX_STEPS)
     if backend == "real":
         if args.scene is not None or args.success_check is not None:
             print(
@@ -246,39 +257,33 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 2
-        # Fail before any device is opened when the measured floor is missing. The
-        # launcher's own session factory is used so this path and run_real.py cannot
-        # drift on camera transforms or the driver block.
+        # The launcher's own session factory is used so this path and run_real.py cannot
+        # drift on camera transforms, the driver block, or the pre-connect safety checks
+        # (it refuses an unmeasured Z floor before any device is opened).
         from core.launch import make_openarm_real_session
 
-        session = make_openarm_real_session(cfg, args)
         what = "hardware"
-        if (
-            bool(cfg.get("enable_z_floor", True))
-            and cfg.get("z_floor_m") is None
-            and not args.no_z_floor
-            and args.z_floor_m is None
-        ):
-            print(
-                "\n[openarm] the Z floor is enabled but no measured height is set. Rest "
-                "the driven gripper on the tabletop, then run:\n"
-                "  python scripts/openarm/capture_z_floor.py --arm "
-                f"{session.config.arm_side} --write\n"
-                "or pass --z-floor-m <height>, or --no-z-floor (not recommended).",
-                file=sys.stderr,
-            )
+        try:
+            session = make_openarm_real_session(cfg, args)
+        except ValueError as exc:
+            print(f"\n[openarm] {exc}", file=sys.stderr)
             return 2
     else:
-        session = OpenArmSession(_session_config(cfg, args))
         what = "the simulation"
+        try:
+            session = OpenArmSession(_session_config(cfg, args))
+        except ValueError as exc:
+            print(f"\n[openarm] {exc}", file=sys.stderr)
+            return 2
     try:
+        # A failed connect() has already stopped and disabled anything it enabled.
         session.connect()
     except Exception as exc:  # noqa: BLE001 - startup guidance beats a traceback
         print(f"\n[openarm] could not start {what}: {exc}", file=sys.stderr)
         return 2
 
     try:
-        logger = EpisodeLogger(Path(ROOT) / str(cfg["log_dir"]), 0, variant="OA")
+        logger = EpisodeLogger(log_root, 0, variant="OA")
         if args.dump_views:
             return _dump_views(session, logger.run_dir)
 
@@ -319,7 +324,9 @@ def main() -> int:
                 f"{auto_release.empty_width_m:.4f} m)."
             )
 
-        task = str(cfg.get("task") or "").strip() or _default_task(cfg)
+        task = str(cfg.get("task") or "").strip() or _default_task(
+            getattr(session.config, "scene", None)
+        )
         print(f"Task: {task}")
         logger.write_metadata(
             {
@@ -344,7 +351,7 @@ def main() -> int:
             logger=logger,
             task=task,
             gripper_color=str(cfg.get("gripper_color", "black")),
-            max_steps=int(cfg["max_steps"]),
+            max_steps=max_steps,
             loop_period_s=float(cfg.get("loop_period_s", 0.0)),
             use_wrist_image=bool(cfg.get("use_wrist_image", True)),
             video_fps=float(cfg.get("v0", {}).get("video_fps", 2.0)),
@@ -379,9 +386,12 @@ def main() -> int:
         session.close()
 
 
-def _default_task(cfg: dict) -> str:
-    """Task text when the config carries none (the sim configs are task-free)."""
-    if cfg.get("scene") == "insert_flower":
+def _default_task(scene: str | None) -> str:
+    """Task text when the config carries none (the sim configs are task-free).
+
+    Keyed on the scene the session actually built, so ``--scene`` picks the matching task.
+    """
+    if scene == "insert_flower":
         return "Insert the roses into the vase"
     return "Pick up the red cube and place it on the table"
 

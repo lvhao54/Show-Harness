@@ -15,8 +15,10 @@ Differences from the simulator wrapper, all of them properties of hardware:
   measured finger joint angle through the same geometry the MJCF model uses (measured from
   the official model: 0 rad closed, then a monotone opening), because the controller's
   empty-grasp and close/open discriminators work in metres.
-* The other arm is held at the pose latched at construction, exactly like the simulator:
-  one Show-Harness rollout drives one arm and must not disturb the other.
+* The other arm is held at a latched pose, exactly like the simulator: one Show-Harness
+  rollout drives one arm and must not disturb the other. The session re-latches it with
+  :meth:`OpenArmRealRobot.sync_hold` once the support preload has settled -- the pose read
+  at construction is taken right after enable, before the arm has sagged under gravity.
 
 Frames and units are identical to the simulator path:
 ``arm_origin`` metres with the Show-Harness ``[x,y,z,qx,qy,qz,qw]`` quaternion order; the

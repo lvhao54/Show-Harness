@@ -119,6 +119,10 @@ class OpenArmHardwareIntegrationTests(unittest.TestCase):
         self.assertTrue(backend.hardware_watchdog)
         self.assertEqual((backend.mode, backend.frame), ("real", "arm_origin"))
 
+    def test_stop_trajectory_option_reaches_the_dispatcher(self):
+        self.backend(stop_trajectory=False)
+        self.assertIs(self.dispatch_factory.call_args.args[0]["stop_trajectory"], False)
+
     def test_camera_start_failure_never_starts_can_and_cleans_both_resources(self):
         original = RuntimeError("USB camera missing")
         self.camera.start.side_effect = self.fail("camera.start", original)

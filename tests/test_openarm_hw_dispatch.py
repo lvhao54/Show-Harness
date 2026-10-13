@@ -285,6 +285,20 @@ class OpenArmDispatchTests(unittest.TestCase):
             self.assertEqual(driver.stop_steps, 20)
             self.assertFalse(driver.enabled)
 
+    def test_stop_trajectory_can_be_disabled_for_in_place_shutdown(self):
+        """capture_z_floor.py disables where the operator placed the arm."""
+        fixture = self.fixture(stop_trajectory=False)
+        robot = fixture.start()
+        for driver in fixture.drivers.values():
+            driver.stop_entered.clear()
+
+        robot.close()
+
+        for driver in fixture.drivers.values():
+            self.assertFalse(driver.stop_entered.is_set())
+            self.assertFalse(driver.enabled)
+            self.assertTrue(driver.disabled.is_set())
+
     def test_stop_trajectory_failure_is_reported_after_disable(self):
         fixture = self.fixture()
         robot = fixture.start()
@@ -621,6 +635,7 @@ class OpenArmDispatchTests(unittest.TestCase):
             ("cutoff_hz", math.inf),
             ("cutoff_hz", 101),
             ("startup_trajectory", "false"),
+            ("stop_trajectory", "false"),
         ):
             with self.subTest(name=name, value=value), self.assertRaises(ValueError):
                 dispatch.BimanualDispatcher({name: value})

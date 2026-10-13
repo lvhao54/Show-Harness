@@ -58,9 +58,10 @@ agentview_square_size: 256
 # (see the measurement in docs/simulators.md):
 #   right arm -> rotation 270, flip both   (+X reads UP, +Y reads LEFT, fingertips at TOP)
 #   left  arm -> rotation  90, flip both
-# Values below are for the default `arm_side: right`; swap them together with arm_side.
-wrist_rotation_degrees: 270
-wrist_flip: both
+# The driven arm (arm_side / --arm) picks its own entry; an arm without one is refused.
+wrist_by_arm:
+  right: {rotation_degrees: 270, flip: both}
+  left: {rotation_degrees: 90, flip: both}
 wrist_crop_aspect: 1.3333
 wrist_square_size: 256
 use_wrist_image: true

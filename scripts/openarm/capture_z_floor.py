@@ -11,9 +11,11 @@ autonomous run refuses to start until this is a measured number rather than a gu
     # print only, do not touch the config
     python scripts/openarm/capture_z_floor.py --arm right
 
-This starts ONLY the CAN workers for the requested arm (no cameras), enables it, reads the
-control-point height and disables it again. It moves nothing: the vendor's startup trajectory
-is never run, so hand-guide or jog the gripper into contact before calling it.
+This starts the CAN workers (no cameras), enables BOTH arms at their measured position --
+the bimanual dispatcher always owns both buses -- reads the requested arm's control-point
+height, and disables both again where they stand. It moves nothing: neither the vendor's
+startup trajectory nor its stop trajectory is run, so hand-guide or jog the gripper into
+contact before calling it, and expect both arms to go limp again on exit.
 
 The value is written into the site layer (configs/site/openarm.yaml), which is per-cell and
 gitignored, under ``z_floor_m``. ``--site-config`` points at a different file.
@@ -65,13 +67,17 @@ def _driver_config(args: argparse.Namespace) -> dict:
     driver.pop("cameras", None)
     if not driver.get("hardware_watchdog_confirmed"):
         raise SystemExit(
-            "driver.hardware_watchdog_confirmed is false. Capturing the floor enables the "
-            "motors (they hold their measured position; the start trajectory is off), so "
-            "verify the motor watchdog and the physical stop on this robot, set "
-            f"`hardware_watchdog_confirmed: true` in {args.site_config}, and re-run."
+            "driver.hardware_watchdog_confirmed is false. Capturing the floor enables both "
+            "arms' motors (they hold their measured position; the start and stop "
+            "trajectories are off), so verify the motor watchdog and the physical stop on "
+            f"this robot, set `hardware_watchdog_confirmed: true` in {args.site_config}, "
+            "and re-run."
         )
-    # Capturing a floor must not run the vendor startup trajectory underneath the operator.
+    # Capturing a floor must not move an arm underneath the operator: no startup
+    # trajectory on enable, and no stop trajectory before disable (it would drag the
+    # resting gripper off the table).
     driver["startup_trajectory"] = False
+    driver["stop_trajectory"] = False
     return driver
 
 
@@ -130,6 +136,7 @@ def main() -> int:
         exit_code = 1
     finally:
         try:
+            # Stops the workers and disables both arms in place (stop_trajectory off).
             if robot is not None:
                 robot.close()
             else:

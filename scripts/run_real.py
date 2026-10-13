@@ -71,6 +71,8 @@ from core.launch import (  # noqa: F401  (re-exported for compatibility)
     mem_text_len,
     move_to_begin_franka,
     openarm_backend,
+    openarm_real_preflight,
+    openarm_wrist_transform,
     move_to_begin_on_init,
     piper_session_config,
     recovery_empty_width_m,
@@ -98,8 +100,8 @@ def parse_args() -> argparse.Namespace:
         "--arm",
         default=None,
         choices=["left", "right"],
-        help="Piper only: which arm the autonomous rollout drives. The rig is dual-arm "
-        "and its config is unified, but the VLM controller commands ONE arm.",
+        help="Piper / OpenArm: which arm the autonomous rollout drives. The rigs are "
+        "dual-arm and their configs are unified, but the VLM controller commands ONE arm.",
     )
     parser.add_argument(
         "--scene",
@@ -246,20 +248,24 @@ def main() -> int:
                 "world and no independent scene predicate (the policy's DONE is the "
                 "terminal signal). Remove them for configs/robot_openarm_real.yaml."
             )
-        if backend == "real" and (args.mock_robot or args.mock_cameras):
-            # Refuse loudly: these flags belong to the Franka path and are silently
-            # ignored here, so a run the operator believed was a dry run would enable
-            # the real motors.
-            raise ValueError(
-                "--mock-robot / --mock-cameras are not available on the OpenArm real "
-                "backend; this run would enable the physical arms. Use "
-                "configs/robot_openarm_zero.yaml for an offline dry run."
-            )
+        # The simulator flags land in the config, which is what the session, the runner's
+        # success gate and the scene-truth diagnostics all read.
+        if args.scene is not None:
+            robot_cfg["scene"] = args.scene
+        if args.success_check is not None:
+            robot_cfg["success_check"] = args.success_check
         # --arm overrides the config's arm_side for this run; without it the config wins
         # (the Piper default of "left" must NOT leak into the OpenArm rig, whose own
-        # config names the arm the camera transforms were measured for).
+        # config names the arm the camera transforms were measured for). The wrist mounts
+        # are mirrored, so the override also pins that arm's own wrist transform -- and is
+        # refused when the config has none for it.
         if args.arm:
-            robot_cfg["arm_side"] = args.arm
+            wrist_rotation, wrist_flip = openarm_wrist_transform(robot_cfg, args.arm)
+            robot_cfg.update(
+                arm_side=args.arm,
+                wrist_rotation_degrees=wrist_rotation,
+                wrist_flip=wrist_flip,
+            )
         mode = "real hardware" if backend == "real" else "MuJoCo"
         extra = (
             f"(scene: {robot_cfg.get('scene') or 'default cubes'})"
@@ -281,6 +287,10 @@ def main() -> int:
     if hardware == "franka":
         resolve_franka_begin(cfg)
     resolve_z_floor_name(cfg, args)
+    if hardware == "openarm" and openarm_backend(cfg) == "real":
+        # Refuse a mock flag or an unmeasured floor before any VLM wait or device open.
+        # make_session runs the same check again, for every other entry point.
+        openarm_real_preflight(cfg, args)
     client = make_vlm_client(args, cfg)
 
     plugins = PluginsConfig.from_config(cfg)
@@ -339,19 +349,6 @@ def main() -> int:
             print(f"           {line}")
 
     session = make_session(cfg, args, hardware)
-    if hardware == "openarm" and openarm_backend(robot_cfg) == "real":
-        # Read the site layer's measured floor before any device is opened, and fail with
-        # the calibration command rather than starting the arms with an unset floor.
-        floor = cfg.get("z_floor_m")
-        if bool(cfg.get("enable_z_floor", True)) and floor is None and not args.no_z_floor:
-            raise SystemExit(
-                "OpenArm real: the Z floor is enabled but no measured height is set. "
-                "Rest the driven gripper on the tabletop, then run:\n"
-                "  python scripts/openarm/capture_z_floor.py --arm "
-                f"{robot_cfg.get('arm_side', 'right')} --write\n"
-                "or pass --z-floor-m <height> for this run, or --no-z-floor to remove the "
-                "descent limit (not recommended)."
-            )
     viewer = LiveView(
         enabled=not args.no_show,
         title=f"Show-Harness | {cfg['task']}",

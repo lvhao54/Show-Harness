@@ -69,6 +69,10 @@ class OpenArmRealConfigTests(unittest.TestCase):
             cfg, SimpleNamespace(arm="left")
         )
         self.assertEqual(session_cfg.arm_side, "left")
+        # The mounts are mirrored: the left arm gets its own wrist transform.
+        self.assertEqual(
+            (session_cfg.wrist_rotation_degrees, session_cfg.wrist_flip), (90, "both")
+        )
 
     def test_arm_override_also_reaches_the_controller_robot(self) -> None:
         """--arm picks the driven arm everywhere; the other arm holds its pose."""
@@ -322,6 +326,80 @@ class OpenArmRealSessionTests(unittest.TestCase):
         self.assertFalse(session._connected)
         self.assertGreaterEqual(backend.close.call_count, 1)
 
+    def _connect_with(self, backend, config=None):
+        """Run connect() against an injected backend; returns (session, factory mock)."""
+        from core.openarm.openarm_real_session import (
+            OpenArmRealSession,
+            OpenArmRealSessionConfig,
+        )
+
+        with (
+            patch(
+                "core.openarm.openarm_real_session.make_pedestal_backend",
+                return_value=backend,
+            ) as factory,
+            patch("core.openarm.openarm_real_session.require_openarm_driver"),
+        ):
+            session = OpenArmRealSession(config or OpenArmRealSessionConfig())
+            try:
+                session.connect()
+            finally:
+                self.addCleanup(session.close)
+        return session, factory
+
+    def test_failure_after_enable_while_wrapping_the_arm_still_disables_it(self) -> None:
+        """backend.start() enabled the motors; a stale first read must not strand them."""
+        backend = Mock()
+        backend.cameras = ()
+        backend.read_state.side_effect = RuntimeError("encoder feedback is stale")
+        with self.assertRaisesRegex(RuntimeError, "stale"):
+            self._connect_with(backend)
+        backend.start.assert_called_once()
+        self.assertGreaterEqual(backend.close.call_count, 1)
+
+    def test_idle_arm_hold_pose_is_latched_after_the_preload_settles(self) -> None:
+        """The idle arm sags after enable; holding the enable pose would lift it back."""
+        enabled = _state(right_angle=0.0, left_angle=0.0, left_pose=[0.3, 0.2, -0.20, 1, 0, 0, 0])
+        sagged = _state(right_angle=0.0, left_angle=0.0, left_pose=[0.3, 0.2, -0.23, 1, 0, 0, 0])
+        backend = Mock()
+        backend.cameras = ()
+        backend.read_state.return_value = enabled
+
+        def settle():
+            backend.read_state.return_value = sagged
+
+        backend.validate_motion_ready.side_effect = settle
+        session, _ = self._connect_with(backend)
+        np.testing.assert_allclose(session.robot._other_arm_pose, sagged.left)
+
+    def test_only_the_driven_arms_cameras_are_opened(self) -> None:
+        """A stall on the idle arm's wrist camera must not be able to fail a capture."""
+        from core.openarm.openarm_real_session import OpenArmRealSessionConfig
+
+        table = {
+            name: {"serial": name}
+            for name in ("camera_head", "camera_wrist_left", "camera_wrist_right")
+        }
+        backend = Mock()
+        backend.cameras = ()
+        backend.read_state.return_value = _state(right_angle=0.0, left_angle=0.0)
+        _, factory = self._connect_with(
+            backend, OpenArmRealSessionConfig(arm_side="left", cameras=table)
+        )
+        self.assertEqual(
+            set(factory.call_args.kwargs["cameras"]), {"camera_head", "camera_wrist_left"}
+        )
+
+    def test_a_missing_driven_camera_role_fails_before_any_device_opens(self) -> None:
+        from core.openarm.openarm_real_session import OpenArmRealSessionConfig
+
+        backend = Mock()
+        with self.assertRaisesRegex(ValueError, "camera_wrist_right"):
+            self._connect_with(
+                backend, OpenArmRealSessionConfig(cameras={"camera_head": {}})
+            )
+        backend.start.assert_not_called()
+
     def test_connect_orders_camera_start_before_can_start(self) -> None:
         """A bad camera must fail before any motor is enabled."""
         backend = Mock()
@@ -447,6 +525,88 @@ class OpenArmRealCliGuardTests(unittest.TestCase):
                 )
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("--begin-pose does not apply", result.stderr)
+
+
+class OpenArmRealSessionGuardTests(unittest.TestCase):
+    """Every entry point builds the real session through one guarded factory."""
+
+    def setUp(self) -> None:
+        site = REPO / "configs" / "site" / "openarm.yaml"
+        if not site.exists():
+            shutil.copy(site.with_suffix(".yaml.example"), site)
+            self.addCleanup(site.unlink, missing_ok=True)
+
+    @staticmethod
+    def _args(**overrides):
+        values = dict(
+            arm=None, mock_robot=False, mock_cameras=False,
+            no_z_floor=False, z_floor_m=None, z_floor=False,
+        )
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def test_mock_flags_are_refused_by_the_shared_session_factory(self) -> None:
+        """run_real_mvtoken.py reaches the rig through make_session, not run_real.py."""
+        from core.launch import make_session
+
+        cfg = load_yaml(REAL_CONFIG)
+        cfg["z_floor_m"] = -0.27
+        for flag in ("mock_robot", "mock_cameras"):
+            with self.subTest(flag=flag):
+                with self.assertRaisesRegex(ValueError, "would enable the physical arms"):
+                    make_session(cfg, self._args(**{flag: True}), "openarm")
+
+    def test_floor_flag_satisfies_the_floor_check(self) -> None:
+        from core.launch import make_session, openarm_real_preflight
+
+        cfg = load_yaml(REAL_CONFIG)
+        cfg["z_floor_m"] = None  # the shipped site template
+        with self.assertRaisesRegex(ValueError, "no measured height is set"):
+            openarm_real_preflight(cfg, self._args())
+        # Capturing at the start pose would forbid all descent: still refused.
+        with self.assertRaisesRegex(ValueError, "no measured height is set"):
+            openarm_real_preflight(cfg, self._args(z_floor=True))
+        openarm_real_preflight(cfg, self._args(z_floor_m=-0.27))
+        openarm_real_preflight(cfg, self._args(no_z_floor=True))
+        # Building the session opens nothing; connect() is what enables the arms.
+        session = make_session(cfg, self._args(z_floor_m=-0.27), "openarm")
+        self.assertIsNone(session.backend)
+
+    def test_site_layer_without_a_floor_key_gets_no_franka_floor(self) -> None:
+        import argparse
+
+        from core.launch import build_config, openarm_real_preflight
+
+        robot_cfg = load_yaml(REAL_CONFIG)
+        robot_cfg.pop("z_floor_m", None)
+        cfg = build_config(
+            argparse.Namespace(vlm_url=None, model=None, vlm_backend=None), robot_cfg
+        )
+        self.assertIsNone(cfg["z_floor_m"])
+        with self.assertRaisesRegex(ValueError, "no measured height is set"):
+            openarm_real_preflight(cfg, self._args())
+
+
+class CaptureZFloorTests(unittest.TestCase):
+    """The floor capture must not move an arm the operator rested on the table."""
+
+    def test_capture_runs_neither_the_start_nor_the_stop_trajectory(self) -> None:
+        from scripts.openarm import capture_z_floor
+
+        robot_cfg = {
+            "driver": {
+                "hardware_watchdog_confirmed": True,
+                "startup_trajectory": True,
+                "cameras": {"camera_head": {}},
+            }
+        }
+        with patch.object(capture_z_floor, "load_yaml", return_value=robot_cfg):
+            driver = capture_z_floor._driver_config(
+                SimpleNamespace(robot_config="robot.yaml", site_config="site.yaml")
+            )
+        self.assertIs(driver["startup_trajectory"], False)
+        self.assertIs(driver["stop_trajectory"], False)
+        self.assertNotIn("cameras", driver)
 
 
 class OpenArmRealPreflightTests(unittest.TestCase):

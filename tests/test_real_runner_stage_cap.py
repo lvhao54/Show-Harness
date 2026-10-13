@@ -155,5 +155,63 @@ class RealRunnerStageCapTests(unittest.TestCase):
                 self.assertEqual(bool(records[-1].get("ok")), environment_success)
 
 
+
+class DualRunnerStageCapTests(unittest.TestCase):
+    """The dual-arm runner follows the same rule: a capped stage never advances."""
+
+    def test_grasp_timeout_ends_the_episode_instead_of_advancing_to_lift(self) -> None:
+        from core.runners.dual import DualEpisodeRunner
+
+        frame = np.zeros((8, 8, 3), dtype=np.uint8)
+        session = SimpleNamespace(
+            get_observation=lambda: {
+                "agentview": frame, "wrist_left": frame, "wrist_right": frame,
+            }
+        )
+        controllers = {
+            side: SimpleNamespace(z_floor_m=0.0, step=Mock(return_value=None))
+            for side in ("left", "right")
+        }
+        planner = SimpleNamespace(
+            plan=lambda *args, **kwargs: (
+                {"left": [_stage("GRASP"), _stage("LIFT")], "right": []},
+                "plan",
+            )
+        )
+        agent = SimpleNamespace(decide=Mock(), verify_task=Mock())
+        with tempfile.TemporaryDirectory() as run_dir:
+            logger = SimpleNamespace(
+                run_dir=Path(run_dir),
+                write_plan=Mock(),
+                log_step=Mock(),
+                close=Mock(return_value=Path(run_dir) / "rollout.mp4"),
+                write_summary=Mock(),
+            )
+            runner = DualEpisodeRunner(
+                session=session,
+                controllers=controllers,
+                planner=planner,
+                controller_agent=agent,
+                logger=logger,
+                # A zero budget caps the first stage before any decision is made.
+                config=V0Config(max_subgoal_steps=0, max_replans=0, video_fps=1.0),
+                task="put a rose into the vase",
+                max_steps=5,
+                loop_period_s=0.0,
+                debug=False,
+            )
+            result = runner.run()
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.end_reason, "left: subgoal_step_cap_exceeded")
+        agent.decide.assert_not_called()
+        agent.verify_task.assert_not_called()
+        self.assertEqual(runner.arms["left"].index, 0, "the capped GRASP must not advance")
+        # Only the startup RELEASE ran; no LIFT/PLACE motion was ever commanded.
+        self.assertEqual(
+            [call.args[0] for call in controllers["left"].step.call_args_list], ["RELEASE"]
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

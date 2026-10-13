@@ -55,7 +55,6 @@ plugins:
 gripper_color: ""            # the OpenArm jaws are dark grey in the head camera
 high_above_table_m: 0.08
 coarse_step_m: 0.04
-fine_step_m: 0.02
 up_step_m: 0.04
 action_chunk_step_num: 3
 mem_text_len: 5
@@ -100,8 +99,12 @@ observation_resolution: 256
 agentview_rotation_degrees: 0
 agentview_flip: none
 agentview_crop_aspect: 1.3333
-wrist_rotation_degrees: 0
-wrist_flip: none
+# Per arm, because the mounts are mirrored. Both are native upright here (image-down is
+# ~world -Z on either arm at home; the two views are horizontal mirror images), so the
+# entries match -- but a side must be listed before --arm can drive it.
+wrist_by_arm:
+  right: {rotation_degrees: 0, flip: none}
+  left: {rotation_degrees: 0, flip: none}
 wrist_crop_aspect: 1.3333
 use_wrist_image: true
 
@@ -110,7 +113,9 @@ control_hz: 60
 # Commanded step per token. The sim tracks its setpoint closely (measured 20.1 mm achieved
 # for a 20 mm command on all three axes), so unlike RoboLab's relative IK this needs no lag
 # compensation: step_m IS the distance the arm travels. Kept in sync with
-# configs/primitives_openarm.yaml, which owns the token -> displacement mapping.
+# configs/primitives_openarm.yaml, which owns the token -> displacement mapping. This is
+# also the harness's fine step (the Franka key `fine_step_m` is derived from it);
+# `--fine-m` overrides it for one run.
 step_m: 0.02
 # Physics ticks per setpoint command. The naive axis signs are wrong here: the prompt is
 # written in IMAGE terms, and the head camera's image-left is world +Y -- see

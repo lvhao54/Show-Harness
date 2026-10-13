@@ -133,6 +133,8 @@ class BimanualDispatcher:
                 raise ValueError(f"OpenArm {name} must be a nonempty interface name")
         if type(config.get("startup_trajectory", False)) is not bool:
             raise ValueError("OpenArm startup_trajectory must be a boolean")
+        if type(config.get("stop_trajectory", True)) is not bool:
+            raise ValueError("OpenArm stop_trajectory must be a boolean")
         self._condition = threading.Condition()
         self._submit_lock = threading.Lock()
         self._stop = threading.Event()
@@ -264,7 +266,13 @@ class BimanualDispatcher:
             self.config.get("driver_config")
             or self.config.get("profile", "openarm_pedestal")
         )
-        self.stop_duration = stop_trajectory_duration(profile)
+        # stop_trajectory: false disables in place instead (a read-only commissioning
+        # tool must not move an arm the operator has positioned by hand).
+        self.stop_duration = (
+            stop_trajectory_duration(profile)
+            if self.config.get("stop_trajectory", True)
+            else 0.0
+        )
         interfaces = {
             side: self.config.get(f"{side}_can_interface")
             or profile.get_can_interface(f"{side}_arm")
@@ -605,7 +613,8 @@ class BimanualDispatcher:
                     # Run the configured stop trajectory before disabling. This
                     # is the same native-owner thread used for all motor I/O, so
                     # no runtime command can race the shutdown sequence.
-                    self._run_stop_trajectory(side, driver)
+                    if self.config.get("stop_trajectory", True):
+                        self._run_stop_trajectory(side, driver)
                 except BaseException as exc:
                     self._fail(exc)
                 try:

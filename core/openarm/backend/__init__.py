@@ -10,11 +10,27 @@ glue lives here.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from core.openarm.backend.scenes import is_vlabench_assets_present, vlabench_assets_dir
-from core.openarm.backend.simulation import SimulationBackend
 
 __all__ = [
     "SimulationBackend",
     "is_vlabench_assets_present",
     "vlabench_assets_dir",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    """Import the MuJoCo-backed simulation lazily.
+
+    ``scenes`` is pure path logic, and every submodule import runs this package first, so
+    an eager ``simulation`` import would drag ``mujoco`` / ``openarm_control`` in for a
+    scene lookup -- and turn :func:`core.openarm.sim.import_openarm_backend`'s install
+    hint into a bare ``ModuleNotFoundError`` on a venv without the wheels.
+    """
+    if name == "SimulationBackend":
+        from core.openarm.backend.simulation import SimulationBackend  # noqa: PLC0415
+
+        return SimulationBackend
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -42,6 +42,7 @@ class OpenArmPedestalBackend:
             "send_hz",
             "cutoff_hz",
             "startup_trajectory",
+            "stop_trajectory",
             "max_feedback_seconds",
             "max_dispatch_seconds",
             "control_timeout_seconds",

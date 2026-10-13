@@ -282,9 +282,12 @@ its legacy wrist transform.
 
 `--scene insert_flower` swaps the default three-cube tabletop for the VLABench
 vase + three roses; also select `--success-check flowers_in_vase` for that task.
-`--arm left|right` picks the driven arm (the other holds its start pose). On the zero-shot entry point `--dump-views` and `--probe-axes` are
-not defined, so calibrate once with the mvtoken entry point before reading any
-rollout.
+`--arm left|right` picks the driven arm (the other holds its start pose). The
+two wrist mounts are mirror images, so each arm's wrist transform is its own
+`wrist_by_arm.<side>` entry in the config, and an arm without one is refused
+rather than given the other arm's (rotated or mirrored) view. On the zero-shot
+entry point `--dump-views` and `--probe-axes` are not defined, so calibrate once
+with the mvtoken entry point before reading any rollout.
 
 The simulator is **self-contained**:
 
